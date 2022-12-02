@@ -47,13 +47,13 @@ def read_modbus(ip, port, type, register_address, count, slave, timeout=20):
         registries = client.read_holding_registers(
             register_address,
             count=count,
-            unit=slave
+            slave=slave
         )
     elif type == 'input':
         registries = client.read_input_registers(
             register_address,
             count=count,
-            unit=slave
+            slave=slave
         )
     else:
         raise NotImplementedError("type {} is not implemented".format(type))
