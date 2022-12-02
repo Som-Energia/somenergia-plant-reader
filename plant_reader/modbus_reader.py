@@ -11,12 +11,12 @@ def create_table(conn, table_name):
 
     meta = MetaData(conn)
     dbtable = Table(table_name, meta,
-        Column("query_time", DateTime),
+        Column("query_time", DateTime(timezone=True)),
         Column("ip", String),
         Column("port", Integer),
-        Column("register_address", String),
+        Column("register_address", Integer),
         Column("value", Integer),
-        Column("create_date", DateTime),
+        Column("create_date", DateTime(timezone=True)),
         Column("is_valid", Boolean)
     )
 
@@ -27,12 +27,12 @@ def get_table(table_name):
 
     return table(
         table_name,
-        column("query_time", DateTime),
+        column("query_time", DateTime(timezone=True)),
         column("ip", String),
         column("port", Integer),
-        column("register_address", String),
+        column("register_address", Integer),
         column("value", Integer),
-        column("create_date", DateTime),
+        column("create_date", DateTime(timezone=True)),
         column("is_valid", Boolean)
     )
 
