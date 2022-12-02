@@ -41,19 +41,19 @@ mount_nfs = Mount(source="local", target="/repos", type="volume", driver_config=
 
 with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,9,26), schedule_interval='*/5 * * * *', catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:
 
-    repo_github_name = 'modbus-reader'
+    repo_name = 'modbus-reader'
 
-    task_branch_pull_ssh = build_branch_pull_ssh_task(dag=dag, task_name='plant_reader', repo_github_name=repo_github_name)
-    task_git_clone = build_git_clone_ssh_task(dag=dag, repo_github_name=repo_github_name)
-    task_check_repo = build_check_repo_task(dag=dag, repo_github_name=repo_github_name)
-    task_image_build = build_image_build_task(dag=dag, repo_github_name=repo_github_name)
-    task_remove_image = build_remove_image_task(dag=dag, repo_github_name=repo_github_name)
+    task_branch_pull_ssh = build_branch_pull_ssh_task(dag=dag, task_name='plant_reader', repo_name=repo_name)
+    task_git_clone = build_git_clone_ssh_task(dag=dag, repo_name=repo_name)
+    task_check_repo = build_check_repo_task(dag=dag, repo_name=repo_name)
+    task_image_build = build_image_build_task(dag=dag, repo_name=repo_name)
+    task_remove_image = build_remove_image_task(dag=dag, repo_name=repo_name)
 
     plant_reader_task = DockerOperator(
         api_version='auto',
         task_id='plant_reader',
-        image=f'{repo_github_name}-requirements:latest',
-        working_dir=f'/repos/{repo_github_name}',
+        image=f'{repo_name}-requirements:latest',
+        working_dir=f'/repos/{repo_name}',
         command='python3 -m scripts.main get-readings "{{ var.value.plantlake_dbapi }}" modbus_readings planta-asomada.somenergia.coop 1502 3 input 0 52 151 8',
         docker_url=Variable.get("moll_url"),
         mounts=[mount_nfs],
