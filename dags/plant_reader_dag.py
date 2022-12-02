@@ -39,7 +39,7 @@ driver_config = DriverConfig(name='local', options=nfs_config)
 mount_nfs = Mount(source="local", target="/repos", type="volume", driver_config=driver_config)
 
 
-with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,9,26), schedule_interval='*/5 * * * *', catchup=False, tags=["Dades"], default_args=args) as dag:
+with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,9,26), schedule_interval='*/5 * * * *', catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:
 
     repo_github_name = 'modbus-reader'
 
