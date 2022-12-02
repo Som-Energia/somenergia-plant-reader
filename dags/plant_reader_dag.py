@@ -40,7 +40,7 @@ mount_nfs = Mount(source="local", target="/repos", type="volume", driver_config=
 
 with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_interval='*/5 * * * *', catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:
 
-    repo_name = 'modbus-reader'
+    repo_name = 'somenergia-plant-reader'
 
     task_check_repo = build_check_repo_task(dag=dag, repo_name=repo_name)
     task_git_clone = build_git_clone_ssh_task(dag=dag, repo_name=repo_name)
