@@ -7,7 +7,7 @@ license = "GPLv3"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8,<3.11"
 typer = {extras = ["all"], version = "^0.6.1"}
 python-dotenv = "^0.21.0"
 sqlalchemy = "^1.4.42"
