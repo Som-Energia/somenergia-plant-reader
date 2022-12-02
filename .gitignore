@@ -134,3 +134,4 @@ dmypy.json
 # dotenvs
 .env.pre
 .env.prod
+.env.testing

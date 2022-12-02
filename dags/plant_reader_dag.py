@@ -54,7 +54,7 @@ with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,9,26), schedule_int
         task_id='plant_reader',
         image=f'{repo_github_name}-requirements:latest',
         working_dir=f'/repos/{repo_github_name}',
-        command='python3 -m scripts.main "{{  var.value.dbapi }}"',
+        command='python3 -m scripts.get_readings main-command "{{ var.value.dbapi }}" modbus_readings planta-asomada.somenergia.coop 1502 input 52 2 3',
         docker_url=Variable.get("moll_url"),
         mounts=[mount_nfs],
         mount_tmp_dir=False,

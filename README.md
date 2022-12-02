@@ -7,16 +7,16 @@ A lightweight modbus reader for somenergia's plants
 The `main` script can be run manually or by airflow using the dag
 
 ```bash
-python scripts.main --ip <ip> --port <port> --type <registry_type> --address <address> --count <count> --dbapi <dbapi> --table <table>
+python scripts.main --ip <ip> --port <port> --type <registry_type> --address <address> --count <count> --slave <slave> --dbapi <dbapi> --table <table>
 ```
 
-`registry_type` is the modbus registry type, essentially `holding` or `input`.
+`registry_type` is the modbus registry type, essentially `holding` or `input`. `slave` is also known as unit and it refers to the modbus slave number with is typically 1.
 
 Run `python scripts.main --help` for a longer description of each option.
 
 The script will store the result in `table` of the dbapi which must exist beforehand with the following columns
 
-`query_time ip registry_address value create_date is_valid`
+`query_time ip port registry_address value create_date is_valid`
 
 with one row for each registry read.
 
