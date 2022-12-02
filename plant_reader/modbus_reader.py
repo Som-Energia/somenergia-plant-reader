@@ -65,25 +65,44 @@ def read_modbus(ip, port, type, register_address, count, slave, timeout=20):
     return registries.registers
 
 
-def main_read_store(conn, table, ip, port, type, register_address, count, slave):
+def main_read_store(conn, table, ip, port, type, register_address_count, slave):
 
     dbtable = get_table(table)
 
-    registries = read_modbus(ip, port, type, register_address, count, slave)
-    query_time = datetime.datetime.now(datetime.timezone.utc)
+    start_count_tuples = list(zip(register_address_count[0::2],register_address_count[1::2]))
 
-    for offset,register in enumerate(registries):
+    for register_address, count in start_count_tuples:
+        try:
+            registries = read_modbus(ip, port, type, register_address, count, slave)
+            query_time = datetime.datetime.now(datetime.timezone.utc)
 
-        insert_statement = insert(dbtable).values(
-            query_time=query_time,
-            ip=ip,
-            port=port,
-            register_address=register_address+offset,
-            value=register,
-            create_date=query_time,
-            is_valid=True
-        )
+            for offset,register in enumerate(registries):
 
-        result = conn.execute(insert_statement)
+                insert_statement = insert(dbtable).values(
+                    query_time=query_time,
+                    ip=ip,
+                    port=port,
+                    register_address=register_address+offset,
+                    value=register,
+                    create_date=query_time,
+                    is_valid=True
+                )
 
-    return result
+                result = conn.execute(insert_statement)
+        except ModbusException as e:
+
+            logging.error(e)
+
+            insert_statement = insert(dbtable).values(
+                query_time=query_time,
+                ip=ip,
+                port=port,
+                register_address=register_address,
+                value=None,
+                create_date=query_time,
+                is_valid=False
+            )
+
+            result = conn.execute(insert_statement)
+
+    return 0

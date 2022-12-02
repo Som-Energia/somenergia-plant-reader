@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple
+from typing import List
 import typer
 from sqlalchemy import create_engine
 
@@ -24,10 +24,9 @@ def get_readings(
         table: str,
         ip: str,
         port: int,
+        slave: int,
         type: str,
-        register_address: int,
-        count: int,
-        slave: int
+        register_address_count: List[int]
     ):
 
     dbapi = get_config(dbapi)
@@ -36,7 +35,7 @@ def get_readings(
 
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
-        main_read_store(conn, table, ip, port, type, register_address, count, slave)
+        main_read_store(conn, table, ip, port, type, register_address_count, slave)
 
     return 0
 
