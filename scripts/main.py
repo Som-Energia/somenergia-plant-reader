@@ -4,7 +4,7 @@ import typer
 from sqlalchemy import create_engine
 
 from plant_reader import get_config
-from plant_reader import main_read_store, create_table
+from plant_reader import main_read_store, create_table, read_modbus
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
@@ -36,6 +36,27 @@ def get_readings(
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
         main_read_store(conn, table, ip, port, type, register_address_count, slave)
+
+    return 0
+
+
+@app.command()
+def print_readings(
+        ip: str,
+        port: int,
+        slave: int,
+        type: str,
+        register_address: int,
+        count: int
+    ):
+
+
+    print("Reading modbus")
+
+    registries = read_modbus(ip, port, type, register_address, count, slave)
+
+    print(f'Read registries\n:{registries}\n')
+
 
     return 0
 
