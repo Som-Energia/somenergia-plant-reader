@@ -17,7 +17,8 @@ def create_table(conn, table_name):
         Column("register_address", Integer),
         Column("value", Integer),
         Column("create_date", DateTime(timezone=True)),
-        Column("is_valid", Boolean)
+        Column("is_valid", Boolean),
+        Column("unit", Integer)
     )
 
     dbtable.create(conn, checkfirst=True)
@@ -33,7 +34,8 @@ def get_table(table_name):
         column("register_address", Integer),
         column("value", Integer),
         column("create_date", DateTime(timezone=True)),
-        column("is_valid", Boolean)
+        column("is_valid", Boolean),
+        column("unit", Integer)
     )
 
 def read_modbus(ip, port, type, register_address, count, slave, timeout=20):
