@@ -83,7 +83,8 @@ def main_read_store(conn, table, ip, port, type, modbus_tuples):
                     register_address=register_address+offset,
                     value=register,
                     create_date=query_time,
-                    is_valid=True
+                    is_valid=True,
+                    unit=unit
                 )
 
                 result = conn.execute(insert_statement)
@@ -98,7 +99,8 @@ def main_read_store(conn, table, ip, port, type, modbus_tuples):
                 register_address=register_address,
                 value=None,
                 create_date=query_time,
-                is_valid=False
+                is_valid=False,
+                unit=unit
             )
 
             result = conn.execute(insert_statement)
