@@ -65,15 +65,13 @@ def read_modbus(ip, port, type, register_address, count, slave, timeout=20):
     return registries.registers
 
 
-def main_read_store(conn, table, ip, port, type, register_address_count, slave):
+def main_read_store(conn, table, ip, port, type, modbus_tuples):
 
     dbtable = get_table(table)
 
-    start_count_tuples = list(zip(register_address_count[0::2],register_address_count[1::2]))
-
-    for register_address, count in start_count_tuples:
+    for unit, register_address, count in modbus_tuples:
         try:
-            registries = read_modbus(ip, port, type, register_address, count, slave)
+            registries = read_modbus(ip, port, type, register_address, count, unit)
             query_time = datetime.datetime.now(datetime.timezone.utc)
 
             for offset,register in enumerate(registries):
