@@ -54,7 +54,7 @@ with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_int
         image='{}/{}-requirements:latest'.format('{{ conn.somenergia_registry.host }}', repo_name),
         working_dir=f'/repos/{repo_name}',
         command='python3 -m scripts.main get-readings "{{ var.value.plantlake_dbapi }}"\
-                 modbus_readings planta-asomada.somenergia.coop 1502 input 3:0:54 3:151:10 32:54:17 33:54:17',
+                 modbus_readings planta-asomada.somenergia.coop 1502 input 3:0:82 32:54:17 33:54:17',
         docker_url=Variable.get("generic_moll_url"),
         mounts=[mount_nfs],
         mount_tmp_dir=False,
@@ -81,7 +81,7 @@ with DAG(dag_id='plant_printer_dag', start_date=datetime(2023,1,2), schedule_int
         docker_conn_id='somenergia_registry',
         image='{}/{}-requirements:latest'.format('{{ conn.somenergia_registry.host }}', repo_name),
         working_dir=f'/repos/{repo_name}',
-        command='python3 -m scripts.main print-multiple-readings planta-asomada.somenergia.coop 1502 input 120:55:10',
+        command='python3 -m scripts.main print-multiple-readings planta-asomada.somenergia.coop 1502 input 121:55:10',
         docker_url=Variable.get("generic_moll_url"),
         mounts=[mount_nfs],
         mount_tmp_dir=False,
