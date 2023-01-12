@@ -69,3 +69,24 @@ with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_int
     task_branch_pull_ssh >> plant_reader_task
     task_branch_pull_ssh >> task_update_image
     task_update_image >> plant_reader_task
+
+
+with DAG(dag_id='plant_printer_dag', start_date=datetime(2023,1,2), schedule_interval=None, catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:
+
+    repo_name = 'somenergia-plant-reader'
+
+    plant_printer_task = DockerOperator(
+        api_version='auto',
+        task_id='plant_printer',
+        docker_conn_id='somenergia_registry',
+        image='{}/{}-requirements:latest'.format('{{ conn.somenergia_registry.host }}', repo_name),
+        working_dir=f'/repos/{repo_name}',
+        command='python3 -m scripts.main print-multiple-readings planta-asomada.somenergia.coop 1502 input 120:55:32 121:55:32 122:55:32 126:55:32',
+        docker_url=Variable.get("generic_moll_url"),
+        mounts=[mount_nfs],
+        mount_tmp_dir=False,
+        auto_remove=True,
+        retrieve_output=True,
+        trigger_rule='none_failed',
+    )
+
