@@ -81,7 +81,7 @@ with DAG(dag_id='plant_printer_dag', start_date=datetime(2023,1,2), schedule_int
         docker_conn_id='somenergia_registry',
         image='{}/{}-requirements:latest'.format('{{ conn.somenergia_registry.host }}', repo_name),
         working_dir=f'/repos/{repo_name}',
-        command='python3 -m scripts.main print-multiple-readings planta-asomada.somenergia.coop 1502 input 120:55:32 121:55:32 122:55:32 126:55:32',
+        command='python3 -m scripts.main print-multiple-readings planta-asomada.somenergia.coop 1502 input 120:55:10',
         docker_url=Variable.get("generic_moll_url"),
         mounts=[mount_nfs],
         mount_tmp_dir=False,
