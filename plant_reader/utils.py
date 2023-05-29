@@ -3,6 +3,9 @@ from dotenv import dotenv_values
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
+class UnknownConfigContext(Exception):
+    pass
+
 def get_config(dbapi_argument):
     if dbapi_argument == 'prod':
         env_dict = dotenv_values(".env.prod")
@@ -16,3 +19,7 @@ def get_config(dbapi_argument):
     else:
         return dbapi_argument
 
+def get_config_dict(context):
+    if context not in ['prod', 'pre', 'testing']:
+        raise UnknownConfigContext
+    return dotenv_values(f".env.{context}")
