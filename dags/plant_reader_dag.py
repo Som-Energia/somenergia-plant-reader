@@ -61,6 +61,7 @@ with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_int
         auto_remove=True,
         retrieve_output=True,
         trigger_rule='none_failed',
+        force_pull=True,
     )
 
     task_check_repo >> task_git_clone
