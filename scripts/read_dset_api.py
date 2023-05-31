@@ -43,7 +43,8 @@ def get_readings(
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
         logging.info(f"Reading {base_url}")
-        read_store_dset(conn, base_url, apikey)
+        readings = read_store_dset(conn, base_url, apikey)
+        logging.info(readings)
 
     return 0
 

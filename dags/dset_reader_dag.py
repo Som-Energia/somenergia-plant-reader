@@ -37,19 +37,19 @@ nfs_config = {
 driver_config = DriverConfig(name='local', options=nfs_config)
 mount_nfs = Mount(source="local", target="/repos", type="volume", driver_config=driver_config)
 
-
-with DAG(dag_id='dset_reader_dag', start_date=datetime(2022,12,2), schedule_interval='*/5 * * * *', catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:
+# TODO should be 5 minutal when dset changes the frequency
+with DAG(dag_id='dset_reader_dag', start_date=datetime(2022,12,2), schedule_interval='*/15 * * * *', catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:
 
     repo_name = 'somenergia-plant-reader'
 
     dset_reader_task = DockerOperator(
         api_version='auto',
-        task_id='plant_reader',
+        task_id='dset_plant_reader',
         docker_conn_id='somenergia_registry',
         image='{}/{}-requirements:latest'.format('{{ conn.somenergia_registry.host }}', repo_name),
         working_dir=f'/repos/{repo_name}',
         command='python3 -m scripts.read_dset_api get-readings "{{ var.value.plantlake_dbapi }}"\
-                 dset_readings "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}"',
+                 "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}"',
         docker_url=Variable.get("generic_moll_url"),
         mounts=[mount_nfs],
         mount_tmp_dir=False,
