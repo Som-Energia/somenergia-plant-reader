@@ -49,7 +49,7 @@ with DAG(dag_id='dset_reader_dag', start_date=datetime(2022,12,2), schedule_inte
         image='{}/{}-requirements:latest'.format('{{ conn.somenergia_registry.host }}', repo_name),
         working_dir=f'/repos/{repo_name}',
         command='python3 -m scripts.read_dset_api get-readings "{{ var.value.plantlake_dbapi }}"\
-                 "{{var.value.dset_url}}" "{{ var.json.dset_apikey}}"',
+                 "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}"',
         docker_url=Variable.get("generic_moll_url"),
         mounts=[mount_nfs],
         mount_tmp_dir=False,
