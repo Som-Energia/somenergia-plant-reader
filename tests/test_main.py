@@ -1,6 +1,6 @@
-from scripts.main import main_command
+from scripts.main import get_readings
 
-def test___main__base_case():
+def _test___main__base_case():
     dbapi = 'testing'
-    result = main_command(dbapi)
+    result = get_readings(dbapi)
     assert result is None

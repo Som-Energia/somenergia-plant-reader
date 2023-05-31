@@ -28,3 +28,7 @@ def dbsession(engine):
     transaction.rollback()
     # put back the connection to the connection pool
     connection.close()
+
+@pytest.fixture
+def dbconnection(dbsession):
+    return dbsession.connection()
