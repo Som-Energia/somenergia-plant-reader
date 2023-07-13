@@ -1,10 +1,6 @@
 from airflow import DAG
 from datetime import timedelta
 from airflow.providers.docker.operators.docker import DockerOperator
-from util_tasks.t_branch_pull_ssh import build_branch_pull_ssh_task
-from util_tasks.t_git_clone_ssh import build_git_clone_ssh_task
-from util_tasks.t_check_repo import build_check_repo_task
-from util_tasks.t_update_docker_image import build_update_image_task
 from docker.types import Mount, DriverConfig
 from datetime import datetime, timedelta
 from airflow.models import Variable
@@ -42,11 +38,6 @@ with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_int
 
     repo_name = 'somenergia-plant-reader'
 
-    task_check_repo = build_check_repo_task(dag=dag, repo_name=repo_name)
-    task_git_clone = build_git_clone_ssh_task(dag=dag, repo_name=repo_name)
-    task_branch_pull_ssh = build_branch_pull_ssh_task(dag=dag, task_name='plant_reader', repo_name=repo_name)
-    task_update_image = build_update_image_task(dag=dag, repo_name=repo_name)
-
     plant_reader_task = DockerOperator(
         api_version='auto',
         task_id='plant_reader',
@@ -63,13 +54,6 @@ with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_int
         trigger_rule='none_failed',
         force_pull=True,
     )
-
-    task_check_repo >> task_git_clone
-    task_check_repo >> task_branch_pull_ssh
-    task_git_clone >> task_update_image
-    task_branch_pull_ssh >> plant_reader_task
-    task_branch_pull_ssh >> task_update_image
-    task_update_image >> plant_reader_task
 
 
 with DAG(dag_id='plant_printer_dag', start_date=datetime(2023,1,2), schedule_interval=None, catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:

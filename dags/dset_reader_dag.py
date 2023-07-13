@@ -1,10 +1,6 @@
 from airflow import DAG
 from datetime import timedelta
 from airflow.providers.docker.operators.docker import DockerOperator
-from util_tasks.t_branch_pull_ssh import build_branch_pull_ssh_task
-from util_tasks.t_git_clone_ssh import build_git_clone_ssh_task
-from util_tasks.t_check_repo import build_check_repo_task
-from util_tasks.t_update_docker_image import build_update_image_task
 from docker.types import Mount, DriverConfig
 from datetime import datetime, timedelta
 from airflow.models import Variable
@@ -60,6 +56,4 @@ with DAG(dag_id='dset_reader_dag', start_date=datetime(2022,12,2), schedule_inte
     )
 
     # INFO you need to manually create the table with python3 -m scripts.read_dset_api setupdb <dbapi> dset_readings
-
-    dset_reader_task
 

@@ -1,27 +1,28 @@
 [tool.poetry]
-name = "somenergia-modbus-reader"
-version = "0.1.0"
-description = "A lightweight modbus reader for somenergia's plants"
 authors = ["Equip de Dades de SomEnergia <equip.dades@somenergia.coop>"]
+description = "A lightweight modbus reader for somenergia's plants"
 license = "GPLv3"
+name = "somenergia-modbus-reader"
+packages = [{include = "plant_reader"}]
 readme = "README.md"
+version = "0.1.0"
 
 [tool.poetry.dependencies]
+httpx = "^0.24.1"
+psycopg2-binary = "^2.9.5"
+pymodbus = "^3.0.2"
 python = ">=3.8,<3.11"
-typer = {extras = ["all"], version = "^0.6.1"}
 python-dotenv = "^0.21.0"
 sqlalchemy = "^1.4.42"
-pymodbus = "^3.0.2"
-psycopg2-binary = "^2.9.5"
-httpx = "^0.24.1"
+typer = {extras = ["all"], version = "^0.6.1"}
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.1.3"
-mkdocs-material = "^8.5.6"
-ipdb = "^0.13.9"
-pymdown-extensions = "^9.6"
 black = "^23.3.0"
+ipdb = "^0.13.9"
+mkdocs-material = "^8.5.6"
+pymdown-extensions = "^9.6"
+pytest = "^7.1.3"
 
 [build-system]
-requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]
