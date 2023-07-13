@@ -83,7 +83,7 @@ with DAG(
         ),
         working_dir=f"/repos/{repo_name}",
         command='python3 -m scripts.read_dset_api get-readings "{{ var.value.plantmonitor_db }}"\
-                 "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}"',
+                 "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}" --schema lake',
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,

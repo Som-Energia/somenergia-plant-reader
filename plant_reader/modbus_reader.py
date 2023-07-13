@@ -33,7 +33,7 @@ def create_table(conn, table_name, schema: str = "public"):
         Column("create_date", DateTime(timezone=True)),
         Column("is_valid", Boolean),
         Column("unit", Integer),
-        schema=schema
+        schema=schema,
     )
 
     dbtable.create(conn, checkfirst=True)
@@ -77,12 +77,27 @@ def read_modbus(ip, port, type, register_address, count, slave, timeout=20):
     return registries.registers
 
 
-def main_read_store(conn, table, ip, port, type, modbus_tuples):
-    dbtable = get_table(table)
+def main_read_store(
+    conn,
+    table,
+    ip,
+    port,
+    type,
+    modbus_tuples,
+    schema: str,
+):
+    dbtable = get_table(table, schema=schema)
 
     for unit, register_address, count in modbus_tuples:
         try:
-            registries = read_modbus(ip, port, type, register_address, count, unit)
+            registries = read_modbus(
+                ip,
+                port,
+                type,
+                register_address,
+                count,
+                unit,
+            )
             query_time = datetime.datetime.now(datetime.timezone.utc)
 
             for offset, register in enumerate(registries):

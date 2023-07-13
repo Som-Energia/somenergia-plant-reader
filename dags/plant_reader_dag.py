@@ -83,7 +83,7 @@ with DAG(
         ),
         working_dir=f"/repos/{repo_name}",
         command='python3 -m scripts.main get-readings "{{ var.value.plantmonitor_db }}"\
-                 modbus_readings planta-asomada.somenergia.coop 1502 input 3:0:82 32:54:16 33:54:16',
+                 modbus_readings planta-asomada.somenergia.coop 1502 input 3:0:82 32:54:16 33:54:16 --schema lake',
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
