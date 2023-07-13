@@ -1,3 +1,4 @@
+import random
 from airflow import DAG
 from datetime import timedelta
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -30,6 +31,11 @@ nfs_config = {
     'device': ':/opt/airflow/repos'
 }
 
+def get_random_moll():
+    molls = Variable.get("available_molls").split()
+    return random.choice(molls)
+
+
 driver_config = DriverConfig(name='local', options=nfs_config)
 mount_nfs = Mount(source="local", target="/repos", type="volume", driver_config=driver_config)
 
@@ -37,6 +43,8 @@ mount_nfs = Mount(source="local", target="/repos", type="volume", driver_config=
 with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_interval='*/5 * * * *', catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:
 
     repo_name = 'somenergia-plant-reader'
+
+    sampled_moll = get_random_moll()
 
     plant_reader_task = DockerOperator(
         api_version='auto',
@@ -46,7 +54,7 @@ with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_int
         working_dir=f'/repos/{repo_name}',
         command='python3 -m scripts.main get-readings "{{ var.value.plantlake_dbapi }}"\
                  modbus_readings planta-asomada.somenergia.coop 1502 input 3:0:82 32:54:16 33:54:16',
-        docker_url=Variable.get("generic_moll_url"),
+        docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
         auto_remove=True,
@@ -55,10 +63,31 @@ with DAG(dag_id='plant_reader_dag', start_date=datetime(2022,12,2), schedule_int
         force_pull=True,
     )
 
+    plant_reader_task_alternative = DockerOperator(
+        api_version='auto',
+        task_id='plant_reader_alternative',
+        docker_conn_id='somenergia_registry',
+        image='{}/{}-requirements:latest'.format('{{ conn.somenergia_registry.host }}', repo_name),
+        working_dir=f'/repos/{repo_name}',
+        command='python3 -m scripts.main get-readings "{{ var.value.plantmonitor_db }}"\
+                 modbus_readings planta-asomada.somenergia.coop 1502 input 3:0:82 32:54:16 33:54:16',
+        docker_url=sampled_moll,
+        mounts=[mount_nfs],
+        mount_tmp_dir=False,
+        auto_remove=True,
+        retrieve_output=True,
+        trigger_rule='none_failed',
+        force_pull=True,
+    )
+
+    plant_reader_task >> plant_reader_task_alternative
+
 
 with DAG(dag_id='plant_printer_dag', start_date=datetime(2023,1,2), schedule_interval=None, catchup=False, tags=["Dades", "Plantmonitor"], default_args=args) as dag:
 
     repo_name = 'somenergia-plant-reader'
+
+    sampled_moll = get_random_moll()
 
     plant_printer_task = DockerOperator(
         api_version='auto',
@@ -67,7 +96,7 @@ with DAG(dag_id='plant_printer_dag', start_date=datetime(2023,1,2), schedule_int
         image='{}/{}-requirements:latest'.format('{{ conn.somenergia_registry.host }}', repo_name),
         working_dir=f'/repos/{repo_name}',
         command='python3 -m scripts.main print-multiple-readings planta-asomada.somenergia.coop 1502 input 120:11:10',
-        docker_url=Variable.get("generic_moll_url"),
+        docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
         auto_remove=True,

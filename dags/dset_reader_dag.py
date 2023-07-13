@@ -56,4 +56,3 @@ with DAG(dag_id='dset_reader_dag', start_date=datetime(2022,12,2), schedule_inte
     )
 
     # INFO you need to manually create the table with python3 -m scripts.read_dset_api setupdb <dbapi> dset_readings
-
