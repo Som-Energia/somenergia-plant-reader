@@ -20,7 +20,7 @@ class ModbusException(Exception):
     pass
 
 
-def create_table(conn, table_name):
+def create_table(conn, table_name, schema: str = "lake"):
     meta = MetaData(conn)
     dbtable = Table(
         table_name,
@@ -33,12 +33,13 @@ def create_table(conn, table_name):
         Column("create_date", DateTime(timezone=True)),
         Column("is_valid", Boolean),
         Column("unit", Integer),
+        schema=schema
     )
 
     dbtable.create(conn, checkfirst=True)
 
 
-def get_table(table_name):
+def get_table(table_name, schema: str = "lake"):
     return table(
         table_name,
         column("query_time", DateTime(timezone=True)),
@@ -49,6 +50,7 @@ def get_table(table_name):
         column("create_date", DateTime(timezone=True)),
         column("is_valid", Boolean),
         column("unit", Integer),
+        schema=schema,
     )
 
 
