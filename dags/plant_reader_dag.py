@@ -55,25 +55,6 @@ with DAG(
 
     sampled_moll = get_random_moll()
 
-    plant_reader_task = DockerOperator(
-        api_version="auto",
-        task_id="plant_reader",
-        docker_conn_id="somenergia_registry",
-        image="{}/{}-requirements:latest".format(
-            "{{ conn.somenergia_registry.host }}", repo_name
-        ),
-        working_dir=f"/repos/{repo_name}",
-        command='python3 -m scripts.main get-readings "{{ var.value.plantlake_dbapi }}"\
-                 modbus_readings planta-asomada.somenergia.coop 1502 input 3:0:82 32:54:16 33:54:16',
-        docker_url=sampled_moll,
-        mounts=[mount_nfs],
-        mount_tmp_dir=False,
-        auto_remove=True,
-        retrieve_output=True,
-        trigger_rule="none_failed",
-        force_pull=True,
-    )
-
     plant_reader_task_alternative = DockerOperator(
         api_version="auto",
         task_id="plant_reader_alternative",
@@ -92,8 +73,6 @@ with DAG(
         trigger_rule="none_failed",
         force_pull=True,
     )
-
-    plant_reader_task >> plant_reader_task_alternative
 
 
 with DAG(
