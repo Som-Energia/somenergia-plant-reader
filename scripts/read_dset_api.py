@@ -5,9 +5,7 @@ from sqlalchemy import create_engine
 from plant_reader import get_config, read_dset, read_store_dset
 from plant_reader.dset_reader import create_table
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 app = typer.Typer()
 
@@ -19,7 +17,6 @@ def setupdb(
     schema: str,
 ):
     dbapi = get_config(dbapi)
-    print("hey")
 
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
