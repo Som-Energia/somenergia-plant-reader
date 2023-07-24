@@ -7,9 +7,7 @@ from plant_reader import get_config
 from plant_reader import main_read_store, read_modbus
 from plant_reader.modbus_reader import create_table
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 app = typer.Typer()
 
@@ -39,10 +37,12 @@ def get_readings(
 ):
     dbapi = get_config(dbapi)
 
-    logging.debug("Connecting to DB")
+    logger.debug("Connecting to DB")
 
     if not modbus_tuple:
-        print("No provided modbus tuples. Expected --modbus-tuple unit address count")
+        logger.error(
+            "No provided modbus tuples. Expected --modbus-tuple unit address count"
+        )
         raise typer.Abort()
 
     modbus_tuples = [tuple(int(e) for e in mt.split(":")) for mt in modbus_tuple]
@@ -56,19 +56,19 @@ def get_readings(
 
 @app.command()
 def print_multiple_readings(ip: str, port: int, type: str, modbus_tuple: List[str]):
-    print("Reading modbus")
+    logger.info("Reading modbus")
 
     modbus_tuples = [tuple(int(e) for e in mt.split(":")) for mt in modbus_tuple]
 
-    print(modbus_tuples)
+    logger.info(modbus_tuples)
 
     for mt in modbus_tuples:
         slave, register_address, count = mt
-        print(f"Read modbus tuple: {slave} {register_address} {count}")
+        logger.info(f"Read modbus tuple: {slave} {register_address} {count}")
 
         registries = read_modbus(ip, port, type, register_address, count, slave)
 
-        print(f"Read registries\n:{registries}\n")
+        logger.info(f"Read registries\n:{registries}\n")
 
     return 0
 
@@ -77,11 +77,11 @@ def print_multiple_readings(ip: str, port: int, type: str, modbus_tuple: List[st
 def print_readings(
     ip: str, port: int, slave: int, type: str, register_address: int, count: int
 ):
-    print("Reading modbus")
+    logger.info("Reading modbus")
 
     registries = read_modbus(ip, port, type, register_address, count, slave)
 
-    print(f"Read registries\n:{registries}\n")
+    logger.info(f"Read registries\n:{registries}\n")
 
     return 0
 
