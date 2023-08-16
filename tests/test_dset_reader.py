@@ -1,6 +1,7 @@
 from tests.db_fixtures import engine, dbsession, dbconnection
 from plant_reader import read_dset, read_store_dset, get_config_dict, create_table, store_dset
 import pytest
+import datetime
 
 def sample_readings():
     readings = {
@@ -100,6 +101,10 @@ def sample_readings():
     }
     return readings
 
+def sample_historic_readings():
+    readings = {}
+    return readings
+
 @pytest.fixture
 def dset_config():
     config = get_config_dict('testing')
@@ -131,5 +136,21 @@ def test___read_store_dset__base_case(dbconnection, dset_config, dset_tables):
 def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
     readings = sample_readings()
     stored_readings = store_dset(dbconnection, readings)
+    print(stored_readings)
+    assert len(stored_readings) > 0
+
+@pytest.mark.skipif(False,reason="remote reads dset api, no rate limit but let's be nice")
+def test___read_dset__base_case(dset_config):
+    base_url, apikey, groupapikey = dset_config
+    from_date = datetime.datetime(2023,8,1,13,00,tzinfo=datetime.timezone.utc)
+    result = read_dset_historic(base_url, apikey)
+    print(result)
+    assert 'signals' in result
+    assert len(result['signals']) > 0
+
+@pytest.mark.skipif(False,reason="remote reads dset api, no rate limit but let's be nice")
+def test___store_dset_historic__base_case(dbconnection, dset_config, dset_tables):
+    readings = sample_historic_readings()
+    stored_readings = store_dset_historic(dbconnection, readings)
     print(stored_readings)
     assert len(stored_readings) > 0
