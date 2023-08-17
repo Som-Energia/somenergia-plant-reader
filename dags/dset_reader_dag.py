@@ -89,10 +89,49 @@ with DAG(
         mount_tmp_dir=False,
         auto_remove=True,
         retrieve_output=True,
-        trigger_rule="none_failed",
+        trigger_rule="all_done",
         force_pull=True,
     )
 
     dset_reader_task >> dset_reader_task_alternative
 
     # INFO you need to manually create the table with python3 -m scripts.read_dset_api setupdb <dbapi> dset_readings
+
+
+
+# TODO should be 5 minutal when dset changes the frequency
+with DAG(
+    dag_id="dset_historic_reader_dag",
+    start_date=datetime(2023, 8, 1),
+    schedule_interval="*/15 * * * *",
+    catchup=False,
+    tags=["Dades", "Plantmonitor"],
+    default_args=args,
+) as dag:
+    repo_name = "somenergia-plant-reader"
+
+    sampled_moll = get_random_moll()
+
+    dbt_vars = {
+        "time_from": "{{ data_interval_start }}",
+        "time_to": "{{ data_interval_end }}",
+    }
+
+    dset_reader_task = DockerOperator(
+        api_version="auto",
+        task_id="dset_plant_reader",
+        docker_conn_id="somenergia_registry",
+        image="{}/{}-requirements:latest".format(
+            "{{ conn.somenergia_registry.host }}", repo_name
+        ),
+        working_dir=f"/repos/{repo_name}",
+        command='python3 -m scripts.read_dset_api get-historic-readings "{{ var.value.plantlake_dbapi }}"\
+                 "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}" ',
+        docker_url=sampled_moll,
+        mounts=[mount_nfs],
+        mount_tmp_dir=False,
+        auto_remove=True,
+        retrieve_output=True,
+        trigger_rule="none_failed",
+        force_pull=True,
+    )
