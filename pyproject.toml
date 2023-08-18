@@ -15,6 +15,7 @@ python = ">=3.8,<3.11"
 python-dotenv = "^0.21.0"
 sqlalchemy = "^1.4.42"
 typer = {extras = ["all"], version = "^0.6.1"}
+pytz = "^2023.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"

@@ -2,7 +2,7 @@ import httpx
 import datetime
 from sqlalchemy import table, column, MetaData, DateTime, Boolean, Column, String, Table
 from sqlalchemy.dialects.postgresql import JSONB, insert
-import json
+import pytz
 
 
 class ApiException(Exception):
@@ -35,6 +35,20 @@ def create_table(conn, table_name, schema: str = "public"):
 
     dbtable.create(conn, checkfirst=True)
 
+def create_response_table(conn, table_name, schema: str = "public"):
+    meta = MetaData(conn)
+    dbtable = Table(
+        table_name,
+        meta,
+        Column("query_time", DateTime(timezone=True)),
+        Column("endpoint", String),
+        Column("params", JSONB),
+        Column("is_valid", Boolean),
+        Column("response", JSONB),
+        schema=schema
+    )
+
+    dbtable.create(conn, checkfirst=True)
 
 def get_table(table_name, schema: str = "public"):
     return table(
@@ -58,6 +72,16 @@ def get_table(table_name, schema: str = "public"):
         schema=schema,
     )
 
+def get_response_table(table_name, schema: str = "public"):
+    return table(
+        table_name,
+        column("query_time", DateTime(timezone=True)),
+        column("endpoint", String),
+        column("params", JSONB),
+        column("is_valid", Boolean),
+        column("response", JSONB),
+        schema=schema,
+    )
 
 def read_dset(base_url, apikey):
     print(f"keys: {apikey}")
@@ -65,21 +89,6 @@ def read_dset(base_url, apikey):
     url = f"{base_url}/api/groups"
 
     response = httpx.get(url, headers={"Authorization": apikey})
-
-    response.raise_for_status()
-
-    return response.json()[0]
-
-def read_dset_historic(base_url, apikey, from_date : datetime.datetime, to_date : datetime.datetime):
-    '''
-    from_date and to_date are inclusive
-    '''
-
-    print(f"keys: {apikey}")
-
-    url = f"{base_url}/api/data"
-    params = {'from': from_date.isoformat(), 'to': to_date.isoformat()}
-    response = httpx.get(url, params=params, headers={"Authorization": apikey})
 
     response.raise_for_status()
 
@@ -112,45 +121,32 @@ def insert_readings(conn, schema: str, request_meta, flat_readings_meta, flat_re
 
     return [dict(r) for r in result.all()]
 
-def flatten_historic_dset(readings):
-    '''
-    takes the last_reading, copies it and creates a fake last_reading from the historic data
-    at the historic point in time, as if it was live read then
-    '''
-    flat_readings_with_unflattened_data = readings.pop("signals", [])
-    flat_readings_meta = readings
-    flat_readings = flat_readings_with_unflattened_data
 
-    for reading in flat_readings:
-        historic_readings = reading.pop('data',[])
-        if not historic_readings:
-            # no historic data in the requested from-to range
-            # TODO is this what we want? we don't have the actual from-to nor the actual requested ts
-            # TODO should we print a warning? Raise?
-            reading['signal_last_ts'] = None
-            reading['signal_last_value'] = None
-        else:
-            historic_reading = historic_readings[0]
-            reading['signal_last_ts'] = historic_reading['ts']
-            reading['signal_last_value'] = historic_reading['value']
+def store_dset_response(conn, response: httpx.Response, endpoint: str, params: str, schema: str):
 
-    return flat_readings, flat_readings_meta
-
-def store_dset_historic(conn, readings, params: str, schema: str):
-    if "signals" not in readings:
-        raise ApiException(f"Readings: {readings}")
-
-    # flat version
-    flat_readings, flat_readings_meta = flatten_historic_dset(readings)
-
-    request_meta = {
+    request_data = {
         "query_time": datetime.datetime.now(datetime.timezone.utc),
-        "endpoint": "/api/data",
+        "endpoint": endpoint,
         "params": params,
-        "is_valid": True,
+        "is_valid": response.status_code == 200,
+        "response": response.json()
     }
 
-    return insert_readings(conn, schema, request_meta, flat_readings_meta, flat_readings)
+    dset_table_name = "dset_responses"
+
+    dset_table = get_response_table(dset_table_name, schema=schema)
+
+    insert_statement = (
+        insert(dset_table)
+        .values(request_data)
+        .returning(
+            dset_table.c.is_valid,
+            dset_table.c.response
+        )
+    )
+    result = conn.execute(insert_statement)
+
+    return [dict(r) for r in result.all()]
 
 def store_dset(conn, readings, schema: str):
     if "signals" not in readings:
@@ -198,10 +194,21 @@ def read_store_dset(conn, base_url, apikey, schema):
 
     return store_dset(conn, readings, schema)
 
-def read_store_dset_historic(conn, base_url, apikey, from_date, to_date, schema):
+def localize_time_range(from_ts: datetime.datetime, to_ts: datetime.datetime):
+    dset_timezone = pytz.timezone('Europe/Madrid')
+    # pendulum is better, astimezone on naïf assumes system's timezone
+    if from_ts.tzinfo == None:
+        from_ts_local = dset_timezone.localize(from_ts)
+        to_ts_local = dset_timezone.localize(to_ts)
+    else:
+        from_ts_local = from_ts.astimezone(dset_timezone)
+        to_ts_local = to_ts.astimezone(dset_timezone)
+    return from_ts_local, to_ts_local
 
-    readings = read_dset_historic(base_url, apikey, from_date, to_date)
+def get_dset_to_db(conn, endpoint, apikey, queryparams, schema):
 
-    params = {'from': from_date.isoformat(), 'to': to_date.isoformat()}
+    response = httpx.get(endpoint, params=queryparams, headers={"Authorization": apikey})
 
-    return store_dset_historic(conn, readings, params, schema)
+    response.raise_for_status()
+
+    return store_dset_response(conn, response, endpoint, queryparams, schema)

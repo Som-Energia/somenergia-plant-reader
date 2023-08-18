@@ -112,10 +112,8 @@ with DAG(
 
     sampled_moll = get_random_moll()
 
-    dbt_vars = {
-        "time_from": "{{ data_interval_start }}",
-        "time_to": "{{ data_interval_end }}",
-    }
+    # e.g. data_interval_start from airflow 2023-08-13T00:00:00+00:00
+    # isoformat utc
 
     dset_reader_task = DockerOperator(
         api_version="auto",
@@ -125,8 +123,9 @@ with DAG(
             "{{ conn.somenergia_registry.host }}", repo_name
         ),
         working_dir=f"/repos/{repo_name}",
-        command='python3 -m scripts.read_dset_api get-historic-readings "{{ var.value.plantlake_dbapi }}"\
-                 "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}" ',
+        command='python3 -m scripts.read_dset_api get-dset-to-db "{{ var.value.plantlake_dbapi }}"\
+                 "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}"\
+                 --from-date {} --to-date {{ data_interval_end }}',
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
