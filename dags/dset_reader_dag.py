@@ -103,7 +103,7 @@ with DAG(
 with DAG(
     dag_id="dset_historic_reader_dag",
     start_date=datetime(2023, 8, 1),
-    schedule="*/15 * * * *",
+    schedule="3-59/15 * * * *",
     catchup=False,
     tags=["Dades", "Plantmonitor"],
     default_args=args,
