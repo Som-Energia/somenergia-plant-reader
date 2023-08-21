@@ -60,7 +60,6 @@ build-app-image-pre-release:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
       when: always
       changes:
-        # compare_to: "refs/heads/main"
         paths:
           - containers/app/Dockerfile
           - pyproject.toml
