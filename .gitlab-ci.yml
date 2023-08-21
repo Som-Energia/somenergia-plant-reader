@@ -59,13 +59,13 @@ build-app-image-pre-release:
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
       when: always
-      # changes:
-      #   compare_to: "refs/heads/main"
-      #   paths:
-      #     - containers/app/Dockerfile
-      #     - pyproject.toml
-      #     - poetry.lock
-      #     - .gitlab-ci.yml
+      changes:
+        # compare_to: "refs/heads/main"
+        paths:
+          - containers/app/Dockerfile
+          - pyproject.toml
+          - poetry.lock
+          - .gitlab-ci.yml
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: always
       changes:
