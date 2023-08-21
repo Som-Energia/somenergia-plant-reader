@@ -1,0 +1,55 @@
+---
+name: somenergia-plant-reader
+
+x-app-common:
+  env_file:
+    - .app.env
+  volumes: &app-common-volumes
+    "../../:/app" # mount current directory at /app
+
+version: "3.7"
+services:
+  builder:
+    image: "harbor.somenergia.coop/dades/somenergia-plant-reader-builder:latest"
+    deploy:
+      replicas: 0 # never start service, since it is only for build purposes
+    build:
+      context: ../../
+      dockerfile: containers/app/Dockerfile
+      target: builder
+      cache_from:
+        - "harbor.somenergia.coop/dades/somenergia-plant-reader-builder:latest"
+  app:
+    image: "harbor.somenergia.coop/dades/somenergia-plant-reader-app:latest"
+    deploy:
+      replicas: 0 # never start service, since it is only for build purposes
+    build:
+      context: ../../
+      dockerfile: containers/app/Dockerfile
+      target: app
+      cache_from:
+        - "harbor.somenergia.coop/dades/somenergia-plant-reader-builder:latest"
+        - "harbor.somenergia.coop/dades/somenergia-plant-reader-app:latest"
+    environment:
+      - SOMENERGIA_PROJECT_ENVIRONMENT=${SOMENERGIA_PROJECT_ENVIRONMENT?Not defined}
+  app-dev:
+    image: "harbor.somenergia.coop/dades/somenergia-plant-reader-app-dev:latest"
+    build:
+      context: ../../
+      dockerfile: containers/app/Dockerfile
+      target: dev
+      cache_from:
+        - "harbor.somenergia.coop/dades/somenergia-plant-reader-builder:latest"
+        - "harbor.somenergia.coop/dades/somenergia-plant-reader-app-dev:latest"
+    volumes:
+      - *app-common-volumes
+      - python_venv_app_dev:/app/.venv # mount virtualenv at /venv. See https://stackoverflow.com/a/74015989/5819113
+    command: /bin/sh -c "sleep infinity" # keep container running
+    networks:
+      - db_nw
+
+networks:
+  db_nw:
+    name: db_nw
+volumes:
+  python_venv_app_dev:

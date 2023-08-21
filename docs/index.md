@@ -1,3 +1,3 @@
 # Welcome to modbus-reader
 
---8<-- "README.md"
+This documentation covers things related to the repository at <https://github.com/Som-Energia/somenergia-plant-reader.git>

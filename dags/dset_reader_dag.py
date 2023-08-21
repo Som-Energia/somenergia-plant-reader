@@ -58,9 +58,9 @@ with DAG(
     dset_reader_task = DockerOperator(
         api_version="auto",
         task_id="dset_plant_reader",
-        docker_conn_id="somenergia_registry",
-        image="{}/{}-requirements:latest".format(
-            "{{ conn.somenergia_registry.host }}", repo_name
+        docker_conn_id="somenergia_harbor_dades_registry",
+        image="{}/{}-app:latest".format(
+            "{{ conn.somenergia_harbor_dades_registry.host }}", repo_name
         ),
         working_dir=f"/repos/{repo_name}",
         command='python3 -m scripts.read_dset_api get-readings "{{ var.value.plantlake_dbapi }}"\
@@ -77,9 +77,9 @@ with DAG(
     dset_reader_task_alternative = DockerOperator(
         api_version="auto",
         task_id="dset_plant_reader_alternative",
-        docker_conn_id="somenergia_registry",
-        image="{}/{}-requirements:latest".format(
-            "{{ conn.somenergia_registry.host }}", repo_name
+        docker_conn_id="somenergia_harbor_dades_registry",
+        image="{}/{}-app:latest".format(
+            "{{ conn.somenergia_harbor_dades_registry.host }}", repo_name
         ),
         working_dir=f"/repos/{repo_name}",
         command='python3 -m scripts.read_dset_api get-readings "{{ var.value.plantmonitor_db }}"\
