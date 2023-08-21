@@ -69,17 +69,22 @@ We use mkdocs to serve extra documentation and adrs
 
 `mkdocs serve`
 
-## ci/cd
+## Passos per afegir ci/cd a un projecte
 
-- [ ] configurar mirall de gitlab cap a github
+Airflow necessita tenir les imatges al harbor per a poder executar python en entorns limitats. Podeu pujar-ho manualment
+
+Partint de somenergia-jardiner o somenergia-plant-reader (que no té dbt)
+
 - [ ] crear carpeta containers/<service>
 	- [ ] definir Dockerfiles per serveis del projecte
 		- [ ] app
-		- [ ] dbt-docs
+		- [ ] dbt-docs (opcional)
 		- [ ] mkdocs
 - [ ] crear .gitlab-ci.yml
 - [ ] configurar variables d'entorn de cicd
+- [ ] configurar mirall de gitlab cap a github
 
 docker compose config will tell you if variables are missing
+you'll need a login to our docker registry at harbour.somenergia.coop
 
 
