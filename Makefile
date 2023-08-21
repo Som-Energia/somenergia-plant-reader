@@ -16,6 +16,12 @@ help: ## Print this help
 sh: ## run a shell in the container
 	@docker compose run --rm -it --entrypoint sh app
 
+builder.build: ## build image for development using docker build
+	@docker compose -f $(app_compose_file) --env-file $(app_compose_env_file) build builder --progress=plain
+
+builder.push: ## push app image to registry
+	@docker compose -f $(app_compose_file) --env-file $(app_compose_env_file) push builder
+
 app.build: ## build image using docker build
 	@docker compose -f $(app_compose_file) --env-file $(app_compose_env_file) build app --progress=plain
 
@@ -27,7 +33,6 @@ app_dev.build: ## build image for development using docker build
 
 app_dev.up: ## start development container
 	@docker compose -f $(app_compose_file) --env-file $(app_compose_env_file) up -d app-dev
-
 
 
 # ---------------------------------------------------------------------------- #
