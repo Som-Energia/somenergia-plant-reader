@@ -118,8 +118,8 @@ rsync-deploy-dags: # This job runs in the deploy stage and copies a file to a se
     ## https://gitlab.com/gitlab-examples/ssh-private-key/issues/1#note_48526556
     ##
     - echo "Adding SSH key to ssh-agent"
-    - chmod 600 "$SOM_SCHEAT_DEPLOY_PRIVATE_KEY"
-    - ssh-add "$SOM_SCHEAT_DEPLOY_PRIVATE_KEY"
+    - chmod 600 "$SOM_SCHEAT_SSH_PRIVATE_KEY"
+    - ssh-add "$SOM_SCHEAT_SSH_PRIVATE_KEY"
 
     ##
     ## Create the SSH directory and give it the right permissions
