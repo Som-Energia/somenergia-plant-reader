@@ -68,3 +68,18 @@ We use poetry to maintain the requirements, but we can update the requirements l
 We use mkdocs to serve extra documentation and adrs
 
 `mkdocs serve`
+
+## ci/cd
+
+- [ ] configurar mirall de gitlab cap a github
+- [ ] crear carpeta containers/<service>
+	- [ ] definir Dockerfiles per serveis del projecte
+		- [ ] app
+		- [ ] dbt-docs
+		- [ ] mkdocs
+- [ ] crear .gitlab-ci.yml
+- [ ] configurar variables d'entorn de cicd
+
+docker compose config will tell you if variables are missing
+
+
