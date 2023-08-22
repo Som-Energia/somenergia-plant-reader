@@ -191,7 +191,7 @@ def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
     assert len(stored_readings) > 0
 
     # dset data specific
-@pytest.mark.skipif(False,reason="remote reads dset api, no rate limit but let's be nice")
+@pytest.mark.skipif(True,reason="remote reads dset api, no rate limit but let's be nice")
 def test___dset_schema_changes(dset_config):
     base_url, apikey, groupapikey = dset_config
     endpoint = f'{base_url}/api/data'
