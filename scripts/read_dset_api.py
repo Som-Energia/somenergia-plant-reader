@@ -4,7 +4,7 @@ import datetime
 from sqlalchemy import create_engine
 
 from plant_reader import get_config, read_dset, read_store_dset, get_dset_to_db, localize_time_range
-from plant_reader.dset_reader import create_table
+from plant_reader.dset_reader import create_table, create_response_table
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,18 @@ def setupdb(
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
         create_table(conn, table, schema=schema)
+
+@app.command()
+def create_responses_table(
+    dbapi: str,
+    schema: str,
+):
+    table = "dset_responses"
+    dbapi = get_config(dbapi)
+
+    db_engine = create_engine(dbapi)
+    with db_engine.begin() as conn:
+        create_response_table(conn, table, schema=schema)
 
 
 @app.command()

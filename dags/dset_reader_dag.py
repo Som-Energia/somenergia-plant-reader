@@ -82,9 +82,9 @@ with DAG(
 
 # TODO should be 5 minutal when dset changes the frequency
 with DAG(
-    dag_id="dset_historic_reader_dag",
+    dag_id="dset_historic_reader_dag_v2",
     start_date=datetime(2023, 8, 1),
-    schedule="3-59/15 * * * *",
+    schedule="*/15 * * * *",
     catchup=False,
     tags=["Dades", "Plantmonitor", "Ingesta"],
     default_args=args,
