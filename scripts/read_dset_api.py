@@ -61,7 +61,6 @@ def get_historic_readings(
     ),
     to_date: datetime.datetime = typer.Option(...,
         help="timestamp with timezone, not inclusive.",
-                help="timestamp with timezone, inclusive.",
         formats=["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S%z", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"]
     ),
     schema: str = typer.Option("public", "--schema"),
