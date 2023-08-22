@@ -46,7 +46,7 @@ mount_nfs = Mount(
 with DAG(
     dag_id="plant_reader_dag",
     start_date=datetime(2022, 12, 2),
-    schedule_interval="*/5 * * * *",
+    schedule="*/5 * * * *",
     catchup=False,
     tags=["Dades", "Plantmonitor"],
     default_args=args,
@@ -68,7 +68,7 @@ with DAG(
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
-        auto_remove=True,
+        auto_remove='force',
         retrieve_output=True,
         trigger_rule="none_failed",
         force_pull=True,
@@ -78,7 +78,7 @@ with DAG(
 with DAG(
     dag_id="plant_printer_dag",
     start_date=datetime(2023, 1, 2),
-    schedule_interval=None,
+    schedule=None,
     catchup=False,
     tags=["Dades", "Plantmonitor"],
     default_args=args,
@@ -99,7 +99,7 @@ with DAG(
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
-        auto_remove=True,
+        auto_remove='force',
         retrieve_output=True,
         trigger_rule="none_failed",
     )

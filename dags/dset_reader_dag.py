@@ -46,7 +46,7 @@ def get_random_moll():
 with DAG(
     dag_id="dset_reader_dag",
     start_date=datetime(2022, 12, 2),
-    schedule_interval="*/15 * * * *",
+    schedule="*/15 * * * *",
     catchup=False,
     tags=["Dades", "Plantmonitor"],
     default_args=args,
@@ -68,7 +68,7 @@ with DAG(
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
-        auto_remove=True,
+        auto_remove='force',
         retrieve_output=True,
         trigger_rule="none_failed",
         force_pull=True,
@@ -87,12 +87,50 @@ with DAG(
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
-        auto_remove=True,
+        auto_remove='force',
         retrieve_output=True,
-        trigger_rule="none_failed",
+        trigger_rule="all_done",
         force_pull=True,
     )
 
     dset_reader_task >> dset_reader_task_alternative
 
     # INFO you need to manually create the table with python3 -m scripts.read_dset_api setupdb <dbapi> dset_readings
+
+
+
+# TODO should be 5 minutal when dset changes the frequency
+with DAG(
+    dag_id="dset_historic_reader_dag",
+    start_date=datetime(2023, 8, 1),
+    schedule="3-59/15 * * * *",
+    catchup=False,
+    tags=["Dades", "Plantmonitor"],
+    default_args=args,
+) as dag:
+    repo_name = "somenergia-plant-reader"
+
+    sampled_moll = get_random_moll()
+
+    # e.g. data_interval_start from airflow 2023-08-13T00:00:00+00:00
+    # isoformat utc
+
+    dset_reader_task = DockerOperator(
+        api_version="auto",
+        task_id="dset_plant_reader",
+        docker_conn_id="somenergia_registry",
+        image="{}/{}-requirements:latest".format(
+            "{{ conn.somenergia_registry.host }}", repo_name
+        ),
+        working_dir=f"/repos/{repo_name}",
+        command='python3 -m scripts.read_dset_api get-dset-to-db "{{ var.value.plantlake_dbapi }}"\
+                 "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}"\
+                 --from-date {} --to-date {{ data_interval_end }}',
+        docker_url=sampled_moll,
+        mounts=[mount_nfs],
+        mount_tmp_dir=False,
+        auto_remove='force',
+        retrieve_output=True,
+        trigger_rule="none_failed",
+        force_pull=True,
+    )
