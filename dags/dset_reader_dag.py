@@ -104,7 +104,7 @@ with DAG(
             "{{ conn.somenergia_harbor_dades_registry.host }}", repo_name
         ),
         working_dir=f"/repos/{repo_name}",
-        command='python3 -m scripts.read_dset_api get-dset-to-db "{{ var.value.plantmonitor_db }}"\
+        command='python3 -m scripts.read_dset_api get-historic-readings "{{ var.value.plantmonitor_db }}"\
                  "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}"\
                  --from-date {{ data_interval_start }} --to-date {{ data_interval_end }} --schema lake',
         docker_url=sampled_moll,
