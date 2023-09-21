@@ -27,6 +27,7 @@ def create_table(conn, table_name, schema: str = "public"):
         Column("signal_frequency", String),
         Column("signal_type", String),
         Column("signal_is_virtual", String),
+        Column("signal_tz", String, nullable=True),
         Column("signal_last_ts", String),
         Column("signal_last_value", String),
         Column("signal_unit", String),
@@ -66,6 +67,7 @@ def get_table(table_name, schema: str = "public"):
         column("signal_frequency", String),
         column("signal_type", String),
         column("signal_is_virtual", String),
+        column("signal_tz", String),
         column("signal_last_ts", String),
         column("signal_last_value", String),
         column("signal_unit", String),
@@ -92,7 +94,7 @@ def read_dset(base_url, apikey):
 
     response.raise_for_status()
 
-    return response.json()[0]
+    return response.json()
 
 def insert_readings(conn, schema: str, request_meta, flat_readings_meta, flat_readings):
 
@@ -192,7 +194,8 @@ def store_dset(conn, readings, schema: str):
 def read_store_dset(conn, base_url, apikey, schema):
     readings = read_dset(base_url, apikey)
 
-    return store_dset(conn, readings, schema)
+    return [ store_dset(conn, group, schema) for group in readings ]
+
 
 def localize_time_range(from_ts: datetime.datetime, to_ts: datetime.datetime):
     dset_timezone = pytz.timezone('Europe/Madrid')

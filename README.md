@@ -45,7 +45,7 @@ pip install -r requirements.txt
 
 ## testing
 
-just run `pytest` on the root directory
+just run `pytest` on the root directory.  Or `pytest --dset` to run tests against dset production api.
 
 ## run
 
