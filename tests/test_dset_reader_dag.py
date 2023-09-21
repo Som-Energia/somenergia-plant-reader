@@ -8,7 +8,7 @@ def dagbag():
     return DagBag(dag_folder='dags',include_examples=False)
 
 def test_dag_loaded(dagbag):
-    dag = dagbag.get_dag(dag_id="dset_historic_reader_dag")
+    dag = dagbag.get_dag(dag_id="dset_historic_reader_dag_v3")
     assert dagbag.import_errors == {}
     assert dag is not None
     assert len(dag.tasks) == 1
