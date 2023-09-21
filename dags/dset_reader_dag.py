@@ -42,11 +42,10 @@ def get_random_moll():
     return random.choice(molls)
 
 
-# TODO should be 5 minutal when dset changes the frequency
 with DAG(
-    dag_id="dset_reader_dag",
+    dag_id="dset_reader_dag_v2",
     start_date=datetime(2022, 12, 2),
-    schedule="*/15 * * * *",
+    schedule="2-59/5 * * * *",
     catchup=False,
     tags=["Dades", "Plantmonitor"],
     default_args=args,
