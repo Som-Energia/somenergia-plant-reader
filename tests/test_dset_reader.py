@@ -167,23 +167,24 @@ def dset_tables(dbconnection):
     dset_table_name = 'dset_responses'
     create_response_table(dbconnection, dset_table_name)
 
-@pytest.mark.skipif(True,reason="remote reads dset api, no rate limit but let's be nice")
+@pytest.mark.dset
 def test___read_dset__base_case(dset_config):
     base_url, apikey, groupapikey = dset_config
-    result = read_dset(base_url, apikey)
+    results = read_dset(base_url, apikey)
+    result = results[0]
     print(result)
     assert 'signals' in result
     assert len(result['signals']) > 0
     # check expected keys
 
-@pytest.mark.skipif(True,reason="remote reads dset api, no rate limit but let's be nice")
+@pytest.mark.dset
 def test___read_store_dset__base_case(dbconnection, dset_config, dset_tables):
     base_url, apikey, groupapikey = dset_config
-    result = read_store_dset(dbconnection, base_url, apikey, schema="public")
-    assert len(result) > 0
+    results = read_store_dset(dbconnection, base_url, apikey, schema="public")
+    assert len(results[0]) > 0
 
 
-@pytest.mark.skipif(True,reason="remote reads dset api, no rate limit but let's be nice")
+@pytest.mark.dset
 def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
     readings = sample_readings()
     stored_readings = store_dset(dbconnection, readings, schema="public")
@@ -191,7 +192,7 @@ def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
     assert len(stored_readings) > 0
 
     # dset data specific
-@pytest.mark.skipif(True,reason="remote reads dset api, no rate limit but let's be nice")
+@pytest.mark.dset
 def test___dset_schema_changes(dset_config):
     base_url, apikey, groupapikey = dset_config
     endpoint = f'{base_url}/api/data'
