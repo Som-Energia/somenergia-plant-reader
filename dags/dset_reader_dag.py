@@ -20,7 +20,15 @@ args = {
     "email": my_email,
     "email_on_failure": True,
     "email_on_retry": False,
-    "retries": 0,
+    "retries": 3,
+    "retry_delay": timedelta(minutes=5),
+}
+
+args_with_retries = {
+    "email": my_email,
+    "email_on_failure": True,
+    "email_on_retry": False,
+    "retries": 3,
     "retry_delay": timedelta(minutes=5),
 }
 
@@ -85,8 +93,7 @@ with DAG(
     schedule="2-59/5 * * * *",
     catchup=False,
     tags=["Dades", "Plantmonitor", "Ingesta"],
-    retries=3,
-    default_args=args,
+    default_args=args_with_retries,
 ) as dag:
     repo_name = "somenergia-plant-reader"
 
