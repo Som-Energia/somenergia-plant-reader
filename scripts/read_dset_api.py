@@ -38,11 +38,11 @@ def create_responses_table(
 
 @app.command()
 def print_readings(base_url: str, apikey: str):
-    logging.info(f"Reading {base_url}")
+    logger.info(f"Reading {base_url}")
 
     registries = read_dset(base_url, apikey)
 
-    logging.info(f"Read registries\n:{registries}\n")
+    logger.info(f"Read registries\n:{registries}\n")
 
     return 0
 
@@ -56,9 +56,9 @@ def get_readings(
 ):
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
-        logging.info(f"Reading {base_url}")
+        logger.info(f"Reading {base_url}")
         readings = read_store_dset(conn, base_url, apikey, schema)
-        logging.info(readings)
+        logger.info(readings)
 
     return 0
 
@@ -85,9 +85,9 @@ def get_historic_readings(
 
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
-        logging.info(f"Reading {base_url} from {from_date} to {to_date}")
+        logger.info(f"Reading {base_url} from {from_date} to {to_date}")
         readings = get_dset_to_db(conn, base_url, apikey, queryparams, schema)
-        logging.info(readings)
+        logger.info(readings)
 
     return 0
 
