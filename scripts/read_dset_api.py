@@ -6,6 +6,10 @@ from sqlalchemy import create_engine
 from plant_reader import get_config, read_dset, read_store_dset, get_dset_to_db, localize_time_range
 from plant_reader.dset_reader import create_table, create_response_table
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
 logger = logging.getLogger(__name__)
 
 app = typer.Typer()
@@ -83,11 +87,13 @@ def get_historic_readings(
     from_date_local, to_date_local = localize_time_range(from_date, to_date)
     queryparams = {'from': from_date_local.isoformat(), 'to': to_date_local.isoformat()}
 
+    logging.info(f"Reading {base_url} from {from_date} to {to_date}")
+
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
-        logger.info(f"Reading {base_url} from {from_date} to {to_date}")
+        logging.info(f"Reading {base_url} from {from_date_local} to {to_date_local} (local times)")
         readings = get_dset_to_db(conn, base_url, apikey, queryparams, schema)
-        logger.info(readings)
+        logging.info(readings)
 
     return 0
 
