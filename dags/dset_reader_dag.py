@@ -53,7 +53,7 @@ def get_random_moll():
 with DAG(
     dag_id="dset_reader_dag_v2",
     start_date=datetime(2022, 12, 2),
-    schedule="2-59/5 * * * *",
+    schedule="4-59/5 * * * *",
     catchup=False,
     tags=["Dades", "Plantmonitor"],
     default_args=args,
@@ -90,7 +90,7 @@ with DAG(
 with DAG(
     dag_id="dset_historic_reader_dag_v3",
     start_date=datetime(2023, 8, 1),
-    schedule="2-59/5 * * * *",
+    schedule="4-59/5 * * * *",
     catchup=False,
     tags=["Dades", "Plantmonitor", "Ingesta"],
     default_args=args_with_retries,
