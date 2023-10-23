@@ -210,7 +210,7 @@ def localize_time_range(from_ts: datetime.datetime, to_ts: datetime.datetime):
 
 def get_dset_to_db(conn, endpoint, apikey, queryparams, schema):
 
-    response = httpx.get(endpoint, params=queryparams, headers={"Authorization": apikey})
+    response = httpx.get(endpoint, params=queryparams, headers={"Authorization": apikey}, timeout=10.0)
 
     response.raise_for_status()
 
