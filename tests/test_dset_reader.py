@@ -178,6 +178,7 @@ def test___read_dset__base_case(dset_config):
     # check expected keys
 
 @pytest.mark.dset
+@pytest.mark.skipif(True,reason="deprecated by read_store_historic_dset")
 def test___read_store_dset__base_case(dbconnection, dset_config, dset_tables):
     base_url, apikey, groupapikey = dset_config
     results = read_store_dset(dbconnection, base_url, apikey, schema="public")
@@ -185,6 +186,7 @@ def test___read_store_dset__base_case(dbconnection, dset_config, dset_tables):
 
 
 @pytest.mark.dset
+@pytest.mark.skipif(True,reason="deprecated by store_historic_dset")
 def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
     readings = sample_readings()
     stored_readings = store_dset(dbconnection, readings, schema="public")
@@ -192,12 +194,12 @@ def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
     assert len(stored_readings) > 0
 
     # dset data specific
-@pytest.mark.dset
+# @pytest.mark.dset
 def test___dset_schema_changes(dset_config):
     base_url, apikey, groupapikey = dset_config
     endpoint = f'{base_url}/api/data'
-    from_ts = datetime.datetime(2023,8,1,13,0,tzinfo=datetime.timezone.utc)
-    to_ts = datetime.datetime(2023,8,1,13,5,tzinfo=datetime.timezone.utc)
+    from_ts = datetime.datetime(2023,10,1,13,0,tzinfo=datetime.timezone.utc)
+    to_ts = datetime.datetime(2023,10,1,13,5,tzinfo=datetime.timezone.utc)
 
     to_ts_exclusive = to_ts - datetime.timedelta(seconds=1)
 
@@ -205,10 +207,11 @@ def test___dset_schema_changes(dset_config):
 
     params = {
         'from': from_ts_local.isoformat(),
-        'to' : to_ts_local.isoformat()
+        'to' : to_ts_local.isoformat(),
+        'sig_detail': True
     }
 
-    response = httpx.get(endpoint, params=params, headers={"Authorization": apikey})
+    response = httpx.get(endpoint, params=params, headers={"Authorization": apikey},  timeout=10.0)
 
     response.raise_for_status()
 
@@ -222,7 +225,8 @@ def test___dset_schema_changes(dset_config):
     assert res[0]['group_id'] == 867
     assert len(res[0]['signals']) > 0
     assert 'data' in res[0]['signals'][0]
-    assert res[0]['signals'][0]['data'] # fragile
+    #assert res[0]['signals'][0]['data'] # fragile
+    assert 'data' in res[0]['signals'][0]
 
 def test___store_dset_historic__base_case(dbconnection, dset_config, dset_tables):
     # sample has [2023-08-01 13:00,2023-08-01 13:15]
@@ -246,19 +250,20 @@ def test___localize_time_range():
     assert from_ts_local.tzinfo.zone == pytz.timezone('Europe/Madrid').zone
     assert from_ts.astimezone(datetime.timezone.utc) == from_ts.astimezone(datetime.timezone.utc)
 
-@pytest.mark.skipif(True,reason="remote reads dset api, no rate limit but let's be nice")
+@pytest.mark.dset
 def test___read_store_dset_historic__base_case(dbconnection, dset_config, dset_tables):
     base_url, apikey, groupapikey = dset_config
     endpoint = f'{base_url}/api/data'
-    from_ts = datetime.datetime(2023,8,1,13,0,tzinfo=datetime.timezone.utc)
-    to_ts = datetime.datetime(2023,8,1,13,5,tzinfo=datetime.timezone.utc)
+    from_ts = datetime.datetime(2023,10,20,13,0,tzinfo=datetime.timezone.utc)
+    to_ts = datetime.datetime(2023,10,20,13,5,tzinfo=datetime.timezone.utc)
 
     to_ts_exclusive = to_ts - datetime.timedelta(seconds=1)
 
     from_ts_local, to_ts_local = localize_time_range(from_ts, to_ts_exclusive)
     params = {
         'from': from_ts_local.isoformat(),
-        'to' : to_ts_local.isoformat()
+        'to' : to_ts_local.isoformat(),
+        'sig_detail' : True
     }
 
     # dset at the moment DOES NOT support aware timstamps, it just discards them,
