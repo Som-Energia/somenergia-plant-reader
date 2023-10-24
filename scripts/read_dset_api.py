@@ -84,7 +84,8 @@ def get_historic_readings(
     # hack to make it not inclusive...
     to_date = to_date - datetime.timedelta(seconds=1)
 
-    # TODO temporary workaround to account for the delay of the remote api
+    # TODO ! temporary workaround to account for the delay of the remote api
+    # might be counter-intuitive since the time range of the airflow interval will not be the actually run
     from_date = from_date - datetime.timedelta(minutes=15)
     to_date = to_date - datetime.timedelta(minutes=15)
 
