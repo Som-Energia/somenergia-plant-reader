@@ -84,6 +84,10 @@ def get_historic_readings(
     # hack to make it not inclusive...
     to_date = to_date - datetime.timedelta(seconds=1)
 
+    # TODO temporary workaround to account for the delay of the remote api
+    from_date = from_date - datetime.timedelta(minutes=15)
+    to_date = to_date - datetime.timedelta(minutes=15)
+
     from_date_local, to_date_local = localize_time_range(from_date, to_date)
     queryparams = {'from': from_date_local.isoformat(), 'to': to_date_local.isoformat(), "sig_detail": True}
 
