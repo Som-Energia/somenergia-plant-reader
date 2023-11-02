@@ -3,7 +3,13 @@ import typer
 import datetime
 from sqlalchemy import create_engine
 
-from plant_reader import get_config, read_dset, read_store_dset, get_dset_to_db, localize_time_range
+from plant_reader import (
+    get_config,
+    read_dset,
+    read_store_dset,
+    get_dset_to_db,
+    localize_time_range,
+)
 from plant_reader.dset_reader import create_table, create_response_table
 
 logging.basicConfig(
@@ -26,6 +32,7 @@ def setupdb(
     db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
         create_table(conn, table, schema=schema)
+
 
 @app.command()
 def create_responses_table(
@@ -66,18 +73,33 @@ def get_readings(
 
     return 0
 
+
 @app.command()
 def get_historic_readings(
     dbapi: str,
     base_url: str,
     apikey: str,
-    from_date: datetime.datetime = typer.Option(...,
+    from_date: datetime.datetime = typer.Option(
+        ...,
         help="timestamp with timezone, inclusive.",
-        formats=["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S%z", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"]
+        formats=[
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%d %H:%M:%S%z",
+            "%Y-%m-%d",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+        ],
     ),
-    to_date: datetime.datetime = typer.Option(...,
+    to_date: datetime.datetime = typer.Option(
+        ...,
         help="timestamp with timezone, not inclusive.",
-        formats=["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S%z", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"]
+        formats=[
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%d %H:%M:%S%z",
+            "%Y-%m-%d",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+        ],
     ),
     schema: str = typer.Option("public", "--schema"),
 ):
@@ -90,17 +112,31 @@ def get_historic_readings(
     to_date = to_date - datetime.timedelta(minutes=15)
 
     from_date_local, to_date_local = localize_time_range(from_date, to_date)
-    queryparams = {'from': from_date_local.isoformat(), 'to': to_date_local.isoformat(), "sig_detail": True}
+
+    queryparams = {
+        "from": from_date_local.isoformat(),
+        "to": to_date_local.isoformat(),
+    }
 
     logging.info(f"Reading {base_url} from {from_date} to {to_date}")
 
     db_engine = create_engine(dbapi)
+
     with db_engine.begin() as conn:
-        logging.info(f"Reading {base_url} from {from_date_local} to {to_date_local} (local times)")
-        readings = get_dset_to_db(conn, base_url, apikey, queryparams, schema)
+        logging.info(
+            f"Reading {base_url} from {from_date_local} to {to_date_local} (local times)"
+        )
+        readings = get_dset_to_db(
+            conn,
+            base_url,
+            apikey,
+            queryparams,
+            schema,
+        )
         logging.info(readings)
 
     return 0
+
 
 if __name__ == "__main__":
     app()

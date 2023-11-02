@@ -63,12 +63,17 @@ with DAG(
             "{{ conn.somenergia_harbor_dades_registry.host }}", repo_name
         ),
         working_dir=f"/repos/{repo_name}",
-        command='python3 -m scripts.main get-readings "{{ var.value.plantmonitor_db }}"\
-                 modbus_readings planta-asomada.somenergia.coop 1502 input 3:0:82 32:54:16 33:54:16 --schema lake',
+        command=(
+            "python3 -m scripts.main get-readings"
+            " {{ var.value.plantmonitor_db }}"
+            " modbus_readings planta-asomada.somenergia.coop"
+            " 1502 input 3:0:82 32:54:16 33:54:16"
+            " --schema lake"
+        ),
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
-        auto_remove='force',
+        auto_remove="force",
         retrieve_output=True,
         trigger_rule="none_failed",
         force_pull=True,
@@ -95,11 +100,15 @@ with DAG(
             "{{ conn.somenergia_harbor_dades_registry.host }}", repo_name
         ),
         working_dir=f"/repos/{repo_name}",
-        command="python3 -m scripts.main print-multiple-readings planta-asomada.somenergia.coop 1502 input 120:11:10",
+        command=(
+            "python3 -m scripts.main print-multiple-readings"
+            " planta-asomada.somenergia.coop"
+            " 1502 input 120:11:10"
+        ),
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
-        auto_remove='force',
+        auto_remove="force",
         retrieve_output=True,
         trigger_rule="none_failed",
     )

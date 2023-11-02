@@ -36,6 +36,7 @@ def create_table(conn, table_name, schema: str = "public"):
 
     dbtable.create(conn, checkfirst=True)
 
+
 def create_response_table(conn, table_name, schema: str = "public"):
     meta = MetaData(conn)
     dbtable = Table(
@@ -46,10 +47,11 @@ def create_response_table(conn, table_name, schema: str = "public"):
         Column("params", JSONB),
         Column("is_valid", Boolean),
         Column("response", JSONB),
-        schema=schema
+        schema=schema,
     )
 
     dbtable.create(conn, checkfirst=True)
+
 
 def get_table(table_name, schema: str = "public"):
     return table(
@@ -74,6 +76,7 @@ def get_table(table_name, schema: str = "public"):
         schema=schema,
     )
 
+
 def get_response_table(table_name, schema: str = "public"):
     return table(
         table_name,
@@ -84,6 +87,7 @@ def get_response_table(table_name, schema: str = "public"):
         column("response", JSONB),
         schema=schema,
     )
+
 
 def read_dset(base_url, apikey):
     print(f"keys: {apikey}")
@@ -96,8 +100,8 @@ def read_dset(base_url, apikey):
 
     return response.json()
 
-def insert_readings(conn, schema: str, request_meta, flat_readings_meta, flat_readings):
 
+def insert_readings(conn, schema: str, request_meta, flat_readings_meta, flat_readings):
     dset_table_name = "dset_readings"
 
     dset_table = get_table(dset_table_name, schema=schema)
@@ -124,14 +128,19 @@ def insert_readings(conn, schema: str, request_meta, flat_readings_meta, flat_re
     return [dict(r) for r in result.all()]
 
 
-def store_dset_response(conn, response: httpx.Response, endpoint: str, params: str, schema: str):
-
+def store_dset_response(
+    conn,
+    response: httpx.Response,
+    endpoint: str,
+    params: str,
+    schema: str,
+):
     request_data = {
         "query_time": datetime.datetime.now(datetime.timezone.utc),
         "endpoint": endpoint,
         "params": params,
         "is_valid": response.status_code == 200,
-        "response": response.json()
+        "response": response.json(),
     }
 
     dset_table_name = "dset_responses"
@@ -143,12 +152,13 @@ def store_dset_response(conn, response: httpx.Response, endpoint: str, params: s
         .values(request_data)
         .returning(
             dset_table.c.is_valid,
-            dset_table.c.response
+            dset_table.c.response,
         )
     )
     result = conn.execute(insert_statement)
 
     return [dict(r) for r in result.all()]
+
 
 def store_dset(conn, readings, schema: str):
     if "signals" not in readings:
@@ -172,7 +182,12 @@ def store_dset(conn, readings, schema: str):
     # json_readings = json.dumps(readings, indent=4, sort_keys=True, default=str)
 
     reading_data = [
-        {**request_meta, **flat_readings_meta, **reading} for reading in flat_readings
+        {
+            **request_meta,
+            **flat_readings_meta,
+            **reading,
+        }
+        for reading in flat_readings
     ]
 
     insert_statement = (
@@ -194,11 +209,11 @@ def store_dset(conn, readings, schema: str):
 def read_store_dset(conn, base_url, apikey, schema):
     readings = read_dset(base_url, apikey)
 
-    return [ store_dset(conn, group, schema) for group in readings ]
+    return [store_dset(conn, group, schema) for group in readings]
 
 
 def localize_time_range(from_ts: datetime.datetime, to_ts: datetime.datetime):
-    dset_timezone = pytz.timezone('Europe/Madrid')
+    dset_timezone = pytz.timezone("Europe/Madrid")
     # pendulum is better, astimezone on naïf assumes system's timezone
     if from_ts.tzinfo == None:
         from_ts_local = dset_timezone.localize(from_ts)
@@ -208,9 +223,13 @@ def localize_time_range(from_ts: datetime.datetime, to_ts: datetime.datetime):
         to_ts_local = to_ts.astimezone(dset_timezone)
     return from_ts_local, to_ts_local
 
-def get_dset_to_db(conn, endpoint, apikey, queryparams, schema):
 
-    response = httpx.get(endpoint, params=queryparams, headers={"Authorization": apikey}, timeout=10.0)
+def get_dset_to_db(conn, endpoint, apikey, queryparams, schema):
+    response = httpx.get(
+        endpoint,
+        params=queryparams,
+        headers={"Authorization": apikey},
+    )
 
     response.raise_for_status()
 
