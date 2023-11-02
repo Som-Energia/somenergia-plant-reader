@@ -1,8 +1,19 @@
-import httpx
 import datetime
-from sqlalchemy import table, column, MetaData, DateTime, Boolean, Column, String, Table
-from sqlalchemy.dialects.postgresql import JSONB, insert
+
+import httpx
 import pytz
+from httpx import Timeout
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    MetaData,
+    String,
+    Table,
+    column,
+    table,
+)
+from sqlalchemy.dialects.postgresql import JSONB, insert
 
 
 class ApiException(Exception):
@@ -215,7 +226,7 @@ def read_store_dset(conn, base_url, apikey, schema):
 def localize_time_range(from_ts: datetime.datetime, to_ts: datetime.datetime):
     dset_timezone = pytz.timezone("Europe/Madrid")
     # pendulum is better, astimezone on naïf assumes system's timezone
-    if from_ts.tzinfo == None:
+    if from_ts.tzinfo is None:
         from_ts_local = dset_timezone.localize(from_ts)
         to_ts_local = dset_timezone.localize(to_ts)
     else:
@@ -229,6 +240,7 @@ def get_dset_to_db(conn, endpoint, apikey, queryparams, schema):
         endpoint,
         params=queryparams,
         headers={"Authorization": apikey},
+        timeout=Timeout(timeout=10.0),
     )
 
     response.raise_for_status()
