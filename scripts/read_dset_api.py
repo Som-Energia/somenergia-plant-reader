@@ -118,8 +118,6 @@ def get_historic_readings(
         "to": to_date_local.isoformat(),
     }
 
-    logging.info(f"Reading {base_url} from {from_date} to {to_date}")
-
     db_engine = create_engine(dbapi)
 
     with db_engine.begin() as conn:
@@ -133,7 +131,8 @@ def get_historic_readings(
             queryparams,
             schema,
         )
-        logging.info(readings)
+
+        logging.debug(readings)
 
     return 0
 
