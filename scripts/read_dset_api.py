@@ -133,6 +133,8 @@ def get_historic_readings(
             schema,
         )
 
+        logging.info("Readings retrieved" if readings else "No readings retrieved")
+        logging.info(f"{readings.keys()=}")
         logging.debug(readings)
 
     return 0
