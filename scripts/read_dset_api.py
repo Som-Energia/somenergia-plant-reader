@@ -134,7 +134,7 @@ def get_historic_readings(
         )
 
         logging.info("Readings retrieved" if readings else "No readings retrieved")
-        logging.debug(readings)
+        logging.info(readings)
 
     return 0
 
