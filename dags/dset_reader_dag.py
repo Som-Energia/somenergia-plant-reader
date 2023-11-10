@@ -95,7 +95,7 @@ with DAG(
     catchup=False,
     tags=["Dades", "Plantmonitor", "Ingesta"],
     default_args=args_with_retries,
-    max_active_runs=1,
+    max_active_runs=5,
 ) as dag:
     repo_name = "somenergia-plant-reader"
 
