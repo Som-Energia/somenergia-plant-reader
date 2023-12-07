@@ -102,14 +102,21 @@ def get_historic_readings(
         ],
     ),
     schema: str = typer.Option("public", "--schema"),
+    wait_min_before_request: int = typer.Option(
+        30,
+        "--wait-min-before-request",
+        help="Minutes to wait before requesting the data",
+    ),
 ):
     # hack to make it not inclusive...
     to_date = to_date - datetime.timedelta(seconds=1)
 
-    # TODO ! temporary workaround to account for the delay of the remote api
+    # temporary workaround to account for the delay of the remote api, see https://gitlab.somenergia.coop/et/somenergia-plant-reader/-/issues/2
     # might be counter-intuitive since the time range of the airflow interval will not be the actually run
-    from_date = from_date - datetime.timedelta(minutes=15)
-    to_date = to_date - datetime.timedelta(minutes=15)
+
+    wait_delta = datetime.timedelta(minutes=wait_min_before_request)
+    from_date = from_date - wait_delta
+    to_date = to_date - wait_delta
 
     from_date_local, to_date_local = localize_time_range(from_date, to_date)
 
