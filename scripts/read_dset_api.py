@@ -121,8 +121,8 @@ def get_historic_readings(
     query_timeout: float = typer.Option(
         10.0, "--query-timeout", help="Query timeout in seconds"
     ),
-    commit_to_db: bool = typer.Option(
-        True, "--commit-to-db", help="Commit to db", is_flag=True
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
 ):
     # hack to make it not inclusive...
@@ -164,7 +164,7 @@ def get_historic_readings(
 
         response.raise_for_status()
 
-        if commit_to_db:
+        if not dry_run:
             stored = store_dset_response(conn, response, endpoint, queryparams, schema)
             logging.info(f"{len(stored)} readings stored")
             logging.info(stored)
