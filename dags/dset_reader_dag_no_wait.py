@@ -60,6 +60,10 @@ with DAG(
 ) as dag:
     repo_name = "somenergia-plant-reader"
 
+    # fixed data time interval
+    query_start_date = datetime(2023, 12, 14, 17, 30, 0)
+    query_end_date = query_start_date + timedelta(hours=1)
+
     sampled_moll = get_random_moll()
 
     # e.g. data_interval_start from airflow 2023-08-13T00:00:00+00:00
@@ -80,8 +84,8 @@ with DAG(
             " --api-base-url {{ var.value.dset_url }}"
             " --endpoint /api/data"
             " --api-key {{ var.value.dset_apikey }}"
-            " --from-date {{ data_interval_start }}"
-            " --to-date {{ data_interval_end }}"
+            f" --from-date {query_start_date.strftime('%Y-%m-%dT%H:%M:%S')}"
+            f" --to-date {query_end_date.strftime('%Y-%m-%dT%H:%M:%S')}"
             " --wait-min-before-request 0"
             " --dry-run"
             " --schema does_not_matter"
