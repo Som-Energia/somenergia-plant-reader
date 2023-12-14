@@ -61,7 +61,8 @@ with DAG(
     repo_name = "somenergia-plant-reader"
 
     # fixed data time interval
-    query_start_date = datetime(2023, 12, 14, 17, 30, 0)
+    _query_start_date = Variable.get("dset_test_query_start_date", "2023-12-14T18:00:00")
+    query_start_date = datetime.fromisoformat(_query_start_date)
     query_end_date = query_start_date + timedelta(hours=1)
 
     sampled_moll = get_random_moll()
