@@ -14,7 +14,11 @@ from plant_reader import (
     read_dset,
     read_store_dset,
 )
-from plant_reader.dset_reader import create_response_table, create_table
+from plant_reader.dset_reader import (
+    create_response_table,
+    create_table,
+    store_dset_response,
+)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -114,6 +118,12 @@ def get_historic_readings(
         "--wait-min-before-request",
         help="Minutes to wait before requesting the data",
     ),
+    query_timeout: float = typer.Option(
+        10.0, "--query-timeout", help="Query timeout in seconds"
+    ),
+    commit_to_db: bool = typer.Option(
+        True, "--commit-to-db", help="Commit to db", is_flag=True
+    ),
 ):
     # hack to make it not inclusive...
     to_date = to_date - datetime.timedelta(seconds=1)
@@ -145,16 +155,23 @@ def get_historic_readings(
             )
         )
 
-        readings = get_dset_to_db(
-            conn,
+        response = httpx.get(
             full_url,
-            apikey,
-            queryparams,
-            schema,
+            params=queryparams,
+            headers={"Authorization": apikey},
+            timeout=Timeout(timeout=query_timeout),
         )
 
-        logging.info("Readings retrieved" if readings else "No readings retrieved")
-        logging.info(readings)
+        response.raise_for_status()
+
+        if commit_to_db:
+            stored = store_dset_response(conn, response, endpoint, queryparams, schema)
+            logging.info(f"{len(stored)} readings stored")
+            logging.info(stored)
+        else:
+            logging.info(
+                "Readings retrieved" if response.json() else "No readings retrieved"
+            )
 
     return 0
 
