@@ -169,9 +169,11 @@ def get_historic_readings(
             logging.info(f"{len(stored)} readings stored")
             logging.info(stored)
         else:
+            response_json = response.json()
             logging.info(
-                "Readings retrieved" if response.json() else "No readings retrieved"
+                "Readings retrieved" if response_json else "No readings retrieved"
             )
+            logging.info(response_json)
 
     return 0
 
