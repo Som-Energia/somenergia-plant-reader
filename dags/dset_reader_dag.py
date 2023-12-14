@@ -72,10 +72,14 @@ with DAG(
         working_dir=f"/repos/{repo_name}",
         command=(
             "python3 -m scripts.read_dset_api"
-            ' get-readings "{{ var.value.plantmonitor_db }}"'
-            ' "{{var.value.dset_url}}" "{{ var.value.dset_apikey}}"'
+            " get-readings"
+            " --db-url {{ var.value.plantmonitor_db }}"
+            " --api-base-url {{ var.value.dset_url }}"
+            " --api-key --{{ var.value.dset_apikey }}"
             " --schema lake"
         ),
+
+
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
@@ -115,9 +119,10 @@ with DAG(
         working_dir=f"/repos/{repo_name}",
         command=(
             "python3 -m scripts.read_dset_api get-historic-readings"
-            " {{ var.value.plantmonitor_db }}"
-            " {{ var.value.dset_url }}/api/data"
-            " {{ var.value.dset_apikey }}"
+            " --db-url {{ var.value.plantmonitor_db }}"
+            " --api-base-url {{ var.value.dset_url }}"
+            " --endpoint /api/data"
+            " --api-key --{{ var.value.dset_apikey }}"
             " --from-date {{ data_interval_start }}"
             " --to-date {{ data_interval_end }}"
             " --schema lake"
@@ -130,3 +135,6 @@ with DAG(
         trigger_rule="none_failed",
         force_pull=True,
     )
+
+if __name__ == "__main__":
+    dag.test()

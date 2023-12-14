@@ -1,16 +1,20 @@
-import logging
-import typer
 import datetime
+import logging
+import typing as T
+
+import httpx
+import typer
+from httpx import Timeout
 from sqlalchemy import create_engine
 
 from plant_reader import (
     get_config,
-    read_dset,
-    read_store_dset,
     get_dset_to_db,
     localize_time_range,
+    read_dset,
+    read_store_dset,
 )
-from plant_reader.dset_reader import create_table, create_response_table
+from plant_reader.dset_reader import create_response_table, create_table
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -60,9 +64,9 @@ def print_readings(base_url: str, apikey: str):
 
 @app.command()
 def get_readings(
-    dbapi: str,
-    base_url: str,
-    apikey: str,
+    dbapi: str = typer.Option(..., "--db-url"),
+    base_url: str = typer.Option(..., "--api-base-url"),
+    apikey: str = typer.Option(..., "--api-key"),
     schema: str = typer.Option("public", "--schema"),
 ):
     db_engine = create_engine(dbapi)
@@ -76,11 +80,14 @@ def get_readings(
 
 @app.command()
 def get_historic_readings(
-    dbapi: str,
-    base_url: str,
-    apikey: str,
+    dbapi: str = typer.Option(..., "--db-url"),
+    base_url: str = typer.Option(..., "--api-base-url"),
+    apikey: str = typer.Option(..., "--api-key"),
+    schema: str = typer.Option(..., "--schema"),
+    endpoint: str = typer.Option("/api/data", "--endpoint"),
     from_date: datetime.datetime = typer.Option(
         ...,
+        "--from-date",
         help="timestamp with timezone, inclusive.",
         formats=[
             "%Y-%m-%dT%H:%M:%S%z",
@@ -92,6 +99,7 @@ def get_historic_readings(
     ),
     to_date: datetime.datetime = typer.Option(
         ...,
+        "--to-date",
         help="timestamp with timezone, not inclusive.",
         formats=[
             "%Y-%m-%dT%H:%M:%S%z",
@@ -101,7 +109,6 @@ def get_historic_readings(
             "%Y-%m-%d %H:%M:%S",
         ],
     ),
-    schema: str = typer.Option("public", "--schema"),
     wait_min_before_request: int = typer.Option(
         30,
         "--wait-min-before-request",
@@ -127,14 +134,20 @@ def get_historic_readings(
     }
 
     db_engine = create_engine(dbapi)
+    full_url = base_url + endpoint
 
     with db_engine.begin() as conn:
         logging.info(
-            f"Reading {base_url} from {from_date_local} to {to_date_local} (local times)"
+            (
+                f"Reading {base_url}"
+                f" from {from_date_local}"
+                f" to {to_date_local} (local times)"
+            )
         )
+
         readings = get_dset_to_db(
             conn,
-            base_url,
+            full_url,
             apikey,
             queryparams,
             schema,

@@ -13,6 +13,7 @@ from sqlalchemy import (
     column,
     table,
 )
+from sqlalchemy.engine import Engine
 from sqlalchemy.dialects.postgresql import JSONB, insert
 
 
@@ -235,7 +236,13 @@ def localize_time_range(from_ts: datetime.datetime, to_ts: datetime.datetime):
     return from_ts_local, to_ts_local
 
 
-def get_dset_to_db(conn, endpoint, apikey, queryparams, schema):
+def get_dset_to_db(
+    conn: Engine,
+    endpoint: str,
+    apikey: str,
+    queryparams: dict,
+    schema: str,
+):
     response = httpx.get(
         endpoint,
         params=queryparams,
