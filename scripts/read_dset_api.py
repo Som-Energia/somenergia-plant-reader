@@ -113,9 +113,9 @@ def get_historic_readings(
             "%Y-%m-%d %H:%M:%S",
         ],
     ),
-    wait_min_before_request: int = typer.Option(
+    request_time_offset_min: int = typer.Option(
         30,
-        "--wait-min-before-request",
+        "--request-time-offset-min",
         help="Minutes to wait before requesting the data",
     ),
     query_timeout: float = typer.Option(
@@ -131,7 +131,7 @@ def get_historic_readings(
     # temporary workaround to account for the delay of the remote api, see https://gitlab.somenergia.coop/et/somenergia-plant-reader/-/issues/2
     # might be counter-intuitive since the time range of the airflow interval will not be the actually run
 
-    wait_delta = datetime.timedelta(minutes=wait_min_before_request)
+    wait_delta = datetime.timedelta(minutes=request_time_offset_min)
     from_date = from_date - wait_delta
     to_date = to_date - wait_delta
 
