@@ -135,11 +135,9 @@ def get_historic_readings(
     from_date = from_date - wait_delta
     to_date = to_date - wait_delta
 
-    from_date_local, to_date_local = localize_time_range(from_date, to_date)
-
     queryparams = {
-        "from": from_date_local.isoformat(),
-        "to": to_date_local.isoformat(),
+        "from": from_date.isoformat(),
+        "to": to_date.isoformat(),
         "sig_detail": True,
         "applykvalue": True,
         "returnNullValues": True,
@@ -152,8 +150,8 @@ def get_historic_readings(
         logging.info(
             (
                 f"Reading {base_url}"
-                f" from {from_date_local}"
-                f" to {to_date_local} (local times)"
+                f" from {from_date}"
+                f" to {to_date} (local times)"
             )
         )
 

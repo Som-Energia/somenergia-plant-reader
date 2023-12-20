@@ -222,7 +222,9 @@ def test___dset_schema_changes(dset_config):
     # groups (plants + 2 legacy)
     assert len(res) > 0
 
-    assert res[0]['group_id'] == 867
+    # currently the fist group is SE_llanillos
+    # pretty fragile
+    assert res[0]['group_id'] == 930
     assert len(res[0]['signals']) > 0
     assert 'data' in res[0]['signals'][0]
     #assert res[0]['signals'][0]['data'] # fragile
@@ -248,7 +250,7 @@ def test___localize_time_range():
 
     from_ts_local, _ = localize_time_range(from_ts, to_ts_exclusive)
     assert from_ts_local.tzinfo.zone == pytz.timezone('Europe/Madrid').zone
-    assert from_ts.astimezone(datetime.timezone.utc) == from_ts.astimezone(datetime.timezone.utc)
+    assert from_ts_local.astimezone(datetime.timezone.utc) == from_ts.astimezone(datetime.timezone.utc)
 
 @pytest.mark.dset
 def test___read_store_dset_historic__base_case(dbconnection, dset_config, dset_tables):
