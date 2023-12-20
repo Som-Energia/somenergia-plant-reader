@@ -121,6 +121,15 @@ def get_historic_readings(
     query_timeout: float = typer.Option(
         10.0, "--query-timeout", help="Query timeout in seconds"
     ),
+    sig_detail: bool = typer.Option(
+        False, "--sig-detail", help="Provide extra fields", is_flag=True
+    ),
+    apply_k_value: bool = typer.Option(
+        False, "--apply-k-value", help="Apply dset k value transformations factor", is_flag=True
+    ),
+    return_null_values: bool = typer.Option(
+        False, "--return-null-values", help="Put null on missing values", is_flag=True
+    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
@@ -138,9 +147,9 @@ def get_historic_readings(
     queryparams = {
         "from": from_date.isoformat(),
         "to": to_date.isoformat(),
-        "sig_detail": True,
-        "applykvalue": True,
-        "returnNullValues": True,
+        "sig_detail": sig_detail,
+        "applykvalue": apply_k_value,
+        "returnNullValues": return_null_values,
     }
 
     db_engine = create_engine(dbapi)
