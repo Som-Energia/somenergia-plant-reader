@@ -140,7 +140,7 @@ def get_historic_readings(
         "to": to_date.isoformat(),
         "sig_detail": True,
         "applykvalue": True,
-        "returnNullValues": True,
+        #"returnNullValues": True,
     }
 
     db_engine = create_engine(dbapi)
