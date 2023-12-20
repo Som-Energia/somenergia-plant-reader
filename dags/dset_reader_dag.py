@@ -126,7 +126,7 @@ with DAG(
             " --from-date {{ data_interval_start }}"
             " --to-date {{ data_interval_end }}"
             " --schema lake"
-            " --query-timeout 20"
+            " --query-timeout {{ var.value.get('dset_query_timeout_seconds', 40) | int }}"
         ),
         docker_url=sampled_moll,
         mounts=[mount_nfs],
