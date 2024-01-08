@@ -153,7 +153,7 @@ with DAG(
     dag_id="dset_historic_reader_daily_dag",
     start_date=datetime(2023, 11, 1),
     schedule="0 5 * * *",
-    catchup=False,
+    catchup=True,
     tags=["Dades", "Plantmonitor", "Ingesta"],
     default_args=args_with_retries,
     max_active_runs=5,
