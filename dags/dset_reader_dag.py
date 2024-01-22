@@ -97,7 +97,7 @@ with DAG(
     start_date=datetime(2023, 8, 1),
     schedule="4-59/5 * * * *",
     catchup=False,
-    tags=["Dades", "Plantmonitor", "Ingesta"],
+    tags=["Dades", "jardiner", "Ingesta", "dset"],
     default_args=args_with_retries,
     max_active_runs=5,
 ) as dag:
@@ -155,7 +155,7 @@ with DAG(
     start_date=datetime(2023, 11, 1),
     schedule="0 5 * * *",
     catchup=True,
-    tags=["Dades", "Plantmonitor", "Ingesta"],
+    tags=["dades", "jardiner", "ingesta", "dset"],
     default_args=args_with_retries,
     max_active_runs=5,
     doc_md=dset_daily_dag_doc
@@ -180,13 +180,14 @@ with DAG(
             "python3 -m scripts.read_dset_api get-historic-readings"
             " --db-url {{ var.value.plantmonitor_db }}"
             " --api-base-url {{ var.value.dset_url }}"
-            " --endpoint /api/data"
+            " --endpoint /api/data/ISO_FORMAT"
             " --api-key {{ var.value.dset_apikey }}"
             " --from-date {{ data_interval_start }}"
             " --to-date {{ data_interval_end }}"
             " --schema lake"
             " --sig-detail"
             " --apply-k-value"
+            " --returnNullValues"
             " --query-timeout {{ var.value.get('dset_query_timeout_seconds', 40) | int }}"
             " --request-time-offset-min 305"
         ),
