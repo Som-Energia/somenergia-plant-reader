@@ -160,7 +160,7 @@ def get_historic_readings(
             (
                 f"Reading {base_url}"
                 f" from {from_date}"
-                f" to {to_date} (local times)"
+                f" to {to_date}"
             )
         )
 
