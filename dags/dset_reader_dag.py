@@ -128,7 +128,7 @@ with DAG(
             " --schema lake"
             " --sig-detail"
             " --apply-k-value"
-            " --returnNullValues"
+            " --return-null-values"
             " --query-timeout {{ var.value.get('dset_query_timeout_seconds', 40) | int }}"
         ),
         docker_url=sampled_moll,
@@ -187,7 +187,7 @@ with DAG(
             " --schema lake"
             " --sig-detail"
             " --apply-k-value"
-            " --returnNullValues"
+            " --return-null-values"
             " --query-timeout {{ var.value.get('dset_query_timeout_seconds', 40) | int }}"
             " --request-time-offset-min 305"
         ),
