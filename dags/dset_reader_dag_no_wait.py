@@ -83,7 +83,7 @@ with DAG(
             "python3 -m scripts.read_dset_api get-historic-readings"
             " --db-url {{ var.value.plantmonitor_db }}"
             " --api-base-url {{ var.value.dset_url }}"
-            " --endpoint /api/data"
+            " --endpoint /api/data/ISO_FORMAT"
             " --api-key {{ var.value.dset_apikey }}"
             f" --from-date {query_start_date.strftime('%Y-%m-%dT%H:%M:%S')}"
             f" --to-date {query_end_date.strftime('%Y-%m-%dT%H:%M:%S')}"
