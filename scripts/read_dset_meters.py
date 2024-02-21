@@ -1,14 +1,15 @@
-import pandas as pd
-import numpy as np
 import datetime
 import logging
 import typing as T
 from json import JSONDecodeError
 
 import httpx
+import numpy as np
+import pandas as pd
+import pytz
+import sqlalchemy as sa
 import typer
 from httpx import Timeout
-import sqlalchemy as sa
 
 TABLE_NAME__DSET_METERS_READINGS = "dset_meters_readings"
 
@@ -24,34 +25,13 @@ app = typer.Typer()
 @app.command()
 def get_historic_readings_meters(
     dbapi: str = typer.Option(..., "--db-url"),
-    base_url: str = typer.Option("https://api.dset-energy.com", "--api-base-url"),
+    base_url: str = typer.Option(
+        "https://api.dset-energy.com",
+        "--api-base-url",
+        help="Base URL of the DSET API",
+    ),
     apikey: str = typer.Option(..., "--api-key"),
     schema: str = typer.Option(..., "--schema"),
-    endpoint: str = typer.Option("/api/data", "--endpoint"),
-    from_date: datetime.datetime = typer.Option(
-        ...,
-        "--from-date",
-        help="timestamp with timezone, inclusive.",
-        formats=[
-            "%Y-%m-%dT%H:%M:%S%z",
-            "%Y-%m-%d %H:%M:%S%z",
-            "%Y-%m-%d",
-            "%Y-%m-%dT%H:%M:%S",
-            "%Y-%m-%d %H:%M:%S",
-        ],
-    ),
-    to_date: datetime.datetime = typer.Option(
-        ...,
-        "--to-date",
-        help="timestamp with timezone, not inclusive.",
-        formats=[
-            "%Y-%m-%dT%H:%M:%S%z",
-            "%Y-%m-%d %H:%M:%S%z",
-            "%Y-%m-%d",
-            "%Y-%m-%dT%H:%M:%S",
-            "%Y-%m-%d %H:%M:%S",
-        ],
-    ),
     request_time_offset_min: int = typer.Option(
         30,
         "--request-time-offset-min",
@@ -60,34 +40,22 @@ def get_historic_readings_meters(
     query_timeout: float = typer.Option(
         10.0, "--query-timeout", help="Query timeout in seconds"
     ),
-    sig_detail: bool = typer.Option(
-        False, "--sig-detail", help="Provide extra fields", is_flag=True
-    ),
     apply_k_value: bool = typer.Option(
         False,
         "--apply-k-value",
         help="Apply dset k value transformations factor",
         is_flag=True,
     ),
-    return_null_values: bool = typer.Option(
-        False, "--return-null-values", help="Put null on missing values", is_flag=True
-    ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
 ):
-
-    # hack to make it not inclusive...
-    to_date = to_date - datetime.timedelta(seconds=1)
-
-    # temporary workaround to account for the delay of the remote api, see https://gitlab.somenergia.coop/et/somenergia-plant-reader/-/issues/2
-    # might be counter-intuitive since the time range of the airflow interval will not be the actually run
-
-    wait_delta = datetime.timedelta(minutes=request_time_offset_min)
-    from_date = from_date - wait_delta
-    to_date = to_date - wait_delta
+    """Get historic readings from the DSET API, compare with what we have at schema and commit them to the database"""
 
     queryparams = {}
+
+    logger.info("Fetching groups from the DSET API")
+
     response = httpx.get(
         base_url + "/api/groups",
         params=queryparams,
@@ -104,7 +72,8 @@ def get_historic_readings_meters(
     )
 
     logger.info(
-        f"Filtered signals with frequency {filter_frequency}: {len(filtered_signals)}"
+        f"{len(filtered_signals)} signals left after"
+        f" filtering by frequency {filter_frequency}"
     )
 
     _signals_dtype = {
@@ -139,15 +108,22 @@ def get_historic_readings_meters(
         df_last_signals["ts"] = df_last_signals["signal_last_ts"]
         df_last_signals["signal_value"] = df_last_signals["signal_last_value"]
 
+        logger.info(
+            f"Table {schema}.{TABLE_NAME__DSET_METERS_READINGS}"
+            " does not exist, creating it as we insert the data"
+        )
+
         df_last_signals.to_sql(
             con=db_engine,
             name=TABLE_NAME__DSET_METERS_READINGS,
             schema=schema,
-            if_exists="error",
+            if_exists="fail",
             index=False,
         )
     else:
         # compare last reading and id with stored readings
+        logger.info("Table exists, comparing last readings with stored ones")
+
         df_lake_meters = _get_lake_latest_signals(schema, db_engine)
 
         # full outer join to get the last readings and the last stored readings
@@ -163,14 +139,24 @@ def get_historic_readings_meters(
 
         # filter the ones that are not in the lake
         df_in_lake_outdated = df_recent.query(
-            "_merge == 'both' and last_ts > max_last_ts or _merge == 'left_only'"
+            "_merge == 'both'"
+            " and signal_last_ts > max_last_ts"
+            " or _merge == 'left_only'"
         ).replace({np.nan: None})
+
+        logger.info("Found {len(df_in_lake_outdated)} signals that needs updating")
 
         for ix, signal in df_in_lake_outdated.iterrows():
 
-            signal_id = signal["signal_id"].item()
-            date_from = signal["max_last_ts"].item() or signal["last_ts"].item()
-            date_to = datetime.datetime.now(tz="Europe/Madrid")
+            # we craft a request to fetch data from
+            signal_id = signal["signal_id"]
+
+            if signal["_merge"] == "both":
+                date_from = signal["max_last_ts"]
+            else:
+                date_from = signal["signal_last_ts"]
+
+            date_to = datetime.datetime.now(tz=pytz.timezone("Europe/Madrid"))
 
             logger.info(f"Updating signal {signal_id} from {date_from} to {date_to}")
 
@@ -180,6 +166,8 @@ def get_historic_readings_meters(
                 "applykvalue": apply_k_value,
             }
 
+            logger.info(f"Querying data for signal with params: {params}")
+
             response = _query_data_latest(
                 signal_id=signal_id,
                 api_key=apikey,
@@ -188,7 +176,10 @@ def get_historic_readings_meters(
                 base_url=base_url,
             )
 
+            response.raise_for_status()
+
             df_response = pd.DataFrame(response.json())
+
             df_new_signals = _extend_response(df_response, signal)
 
             logger.info(f"{len(df_new_signals)} new readings fetched")
@@ -238,11 +229,12 @@ def _extend_response(
             "signal_last_ts": "2024-02-13 23:45:00",
             "signal_last_value": 0,
             "signal_unit": "kWh"
-            "signal_ts": "2021-01-01 00:00:00", # new from the response
+            "ts": "2021-01-01 00:00:00", # new from the response
             "signal_value": 77 # new from the response
         }
     ]
     """
+    df_response.rename(columns={"value": "signal_value"}, inplace=True)
 
     df_response["group_id"] = signal["group_id"]
     df_response["group_code"] = signal["group_code"]
@@ -254,8 +246,8 @@ def _extend_response(
     df_response["signal_is_virtual"] = signal["signal_is_virtual"]
     df_response["signal_tz"] = signal["signal_tz"]
     df_response["signal_unit"] = signal["signal_unit"]
-
-    df_response.rename("ts", "last_ts", inplace=True)
+    df_response["signal_last_ts"] = signal["max_last_ts"]
+    df_response["signal_last_value"] = signal["max_last_ts_value"]
 
     return df_response
 
@@ -340,7 +332,8 @@ def _get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.Dat
         f"""
             SELECT
                 signal_id,
-                max(last_ts) OVER (PARTITION BY signal_id) AS max_last_ts
+                signal_value as max_last_ts_value,
+                max(ts) OVER (PARTITION BY signal_id) AS max_last_ts
             FROM plants.{schema}.{TABLE_NAME__DSET_METERS_READINGS}
             """,
         db_engine,
@@ -348,6 +341,7 @@ def _get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.Dat
     ).astype(
         {
             "signal_id": "int64",
+            "max_last_ts_value": "float64",
             "max_last_ts": "datetime64[ns, Europe/Madrid]",
         }
     )
@@ -373,3 +367,7 @@ def _query_data_latest(
 
     response.raise_for_status()
     return response
+
+
+if __name__ == "__main__":
+    app()
