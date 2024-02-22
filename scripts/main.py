@@ -18,9 +18,9 @@ def setupdb(
     table: str,
     schema: str,
 ):
-    dbapi = get_config(dbapi)
 
-    db_engine = create_engine(dbapi)
+    config = get_config(environment=dbapi)
+    db_engine = create_engine(config.db_url)
     with db_engine.begin() as conn:
         create_table(conn, table, schema=schema)
 
@@ -35,7 +35,7 @@ def get_readings(
     modbus_tuple: List[str],
     schema: str = typer.Option("public", "--schema"),
 ):
-    dbapi = get_config(dbapi)
+    config = get_config(environment=dbapi)
 
     logger.debug("Connecting to DB")
 
@@ -47,7 +47,8 @@ def get_readings(
 
     modbus_tuples = [tuple(int(e) for e in mt.split(":")) for mt in modbus_tuple]
 
-    db_engine = create_engine(dbapi)
+    db_engine = create_engine(config.db_url)
+
     with db_engine.begin() as conn:
         main_read_store(conn, table, ip, port, type, modbus_tuples, schema)
 

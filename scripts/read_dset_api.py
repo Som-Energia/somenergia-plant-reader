@@ -32,9 +32,9 @@ def setupdb(
     table: str,
     schema: str,
 ):
-    dbapi = get_config(dbapi)
+    config = get_config(environment=dbapi)
 
-    db_engine = sa.create_engine(dbapi)
+    db_engine = sa.create_engine(config.db_url)
     with db_engine.begin() as conn:
         create_table(conn, table, schema=schema)
 
@@ -45,9 +45,10 @@ def create_responses_table(
     schema: str,
 ):
     table = "dset_responses"
-    dbapi = get_config(dbapi)
 
-    db_engine = sa.create_engine(dbapi)
+    config = get_config(environment=dbapi)
+    db_engine = sa.create_engine(config.db_url)
+
     with db_engine.begin() as conn:
         create_response_table(conn, table, schema=schema)
 
@@ -82,7 +83,9 @@ def get_readings(
 @app.command()
 def get_historic_readings(
     dbapi: str = typer.Option(..., "--db-url"),
-    base_url: str = typer.Option(..., "--api-base-url", help="Base URL of the DSET api"),
+    base_url: str = typer.Option(
+        ..., "--api-base-url", help="Base URL of the DSET api"
+    ),
     apikey: str = typer.Option(..., "--api-key"),
     schema: str = typer.Option(..., "--schema", help="Schema to store the readings"),
     endpoint: str = typer.Option(..., "--endpoint", help="Endpoint to request"),

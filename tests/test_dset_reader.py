@@ -1,7 +1,6 @@
 from plant_reader import (
     read_dset,
     read_store_dset,
-    get_config_dict,
     create_table,
     create_response_table,
     localize_time_range,
@@ -171,13 +170,6 @@ def sample_data_response():
 
 
 @pytest.fixture
-def dset_config():
-    config = get_config_dict("testing")
-
-    return (config["base_url"], config["dset_api_key"], config["dset_api_groups_key"])
-
-
-@pytest.fixture
 def dset_tables(dbconnection):
     dset_table_name = "dset_readings"
     create_table(dbconnection, dset_table_name)
@@ -187,7 +179,10 @@ def dset_tables(dbconnection):
 
 @pytest.mark.dset
 def test___read_dset__base_case(dset_config):
-    base_url, apikey, groupapikey = dset_config
+
+    base_url = dset_config["base_url"]
+    apikey = dset_config["apikey"]
+    groupapikey = dset_config["groupapikey"]
     results = read_dset(base_url, apikey)
     result = results[0]
     print(result)
@@ -217,8 +212,10 @@ def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
 
 # @pytest.mark.dset
 def test___dset_schema_changes(dset_config):
-    base_url, apikey, groupapikey = dset_config
+    base_url = dset_config.base_url
+    apikey = dset_config.api_key
     endpoint = f"{base_url}/api/data"
+
     from_ts = datetime.datetime(2023, 10, 1, 13, 0, tzinfo=datetime.timezone.utc)
     to_ts = datetime.datetime(2023, 10, 1, 13, 5, tzinfo=datetime.timezone.utc)
 

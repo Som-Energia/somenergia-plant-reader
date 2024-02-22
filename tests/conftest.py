@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from plant_reader.utils import get_config
+from plant_reader.utils import get_config, Environment
 import pytest
 
 
@@ -9,7 +9,7 @@ def engine():
     """
     create a sqlalchemy engine
     """
-    dbapi = get_config("testing")
+    dbapi = get_config(Environment.TESTING).db_url
 
     return create_engine(dbapi)
 
@@ -35,3 +35,8 @@ def dbsession(engine):
 @pytest.fixture
 def dbconnection(dbsession):
     return dbsession.connection()
+
+
+@pytest.fixture
+def dset_config():
+    yield get_config(Environment.TESTING)
