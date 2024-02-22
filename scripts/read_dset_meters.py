@@ -31,11 +31,6 @@ def get_historic_readings_meters(
     ),
     apikey: str = typer.Option(..., "--api-key"),
     schema: str = typer.Option(..., "--schema"),
-    request_time_offset_min: int = typer.Option(
-        30,
-        "--request-time-offset-min",
-        help="Minutes to wait before requesting the data",
-    ),
     query_timeout: float = typer.Option(
         10.0, "--query-timeout", help="Query timeout in seconds"
     ),
