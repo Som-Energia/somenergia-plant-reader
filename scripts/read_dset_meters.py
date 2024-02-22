@@ -1,7 +1,6 @@
 import datetime
 import logging
 import typing as T
-from json import JSONDecodeError
 
 import httpx
 import numpy as np
@@ -50,7 +49,7 @@ def get_historic_readings_meters(
         False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
 ):
-    """Get historic readings from the DSET API, compare with what we have at schema and commit them to the database"""
+    """Get historic readings from the DSET API and compare with what we have"""
 
     queryparams = {}
 
@@ -103,7 +102,6 @@ def get_historic_readings_meters(
     )
 
     if not table_exists:
-
         # we update fields to match the lake table
         df_last_signals["ts"] = df_last_signals["signal_last_ts"]
         df_last_signals["signal_value"] = df_last_signals["signal_last_value"]
@@ -121,89 +119,66 @@ def get_historic_readings_meters(
             index=False,
         )
     else:
-        # compare last reading and id with stored readings
         logger.info("Table exists, comparing last readings with stored ones")
 
         df_lake_meters = _get_lake_latest_signals(schema, db_engine)
 
-        # full outer join to get the last readings and the last stored readings
-        df_recent = df_last_signals.merge(
-            df_lake_meters,
-            left_on="signal_id",
-            right_on="signal_id",
-            how="outer",
-            indicator=True,
-            validate="one_to_one",
-            suffixes=("__dset", "__som"),
+        df_in_lake_outdated = _resolve_outdated_signals(
+            df_api=df_last_signals,
+            df_lake=df_lake_meters,
         )
-
-        # filter the ones that are not in the lake
-        df_in_lake_outdated = df_recent.query(
-            "_merge == 'both'"
-            " and signal_last_ts > max_last_ts"
-            " or _merge == 'left_only'"
-        ).replace({np.nan: None})
 
         logger.info("Found {len(df_in_lake_outdated)} signals that needs updating")
 
-        for ix, signal in df_in_lake_outdated.iterrows():
-
-            # we craft a request to fetch data from
-            signal_id = signal["signal_id"]
-
-            if signal["_merge"] == "both":
-                date_from = signal["max_last_ts"]
-            else:
-                date_from = signal["signal_last_ts"]
-
-            date_to = datetime.datetime.now(tz=pytz.timezone("Europe/Madrid"))
-
-            logger.info(f"Updating signal {signal_id} from {date_from} to {date_to}")
-
-            params = {
-                "from": date_from.strftime("%Y-%m-%d"),
-                "to": date_to.strftime("%Y-%m-%d"),
-                "applykvalue": apply_k_value,
-            }
-
-            logger.info(f"Querying data for signal with params: {params}")
-
-            response = _query_data_latest(
-                signal_id=signal_id,
+        for ix, signal in df_in_lake_outdated.items():
+            _append_new_signal_in_db(
+                signal,
                 api_key=apikey,
-                query_params=params,
-                query_timeout=query_timeout,
                 base_url=base_url,
+                apply_k_value=apply_k_value,
+                engine=db_engine,
+                schema=schema,
+                query_timeout=query_timeout,
+                dry_run=dry_run,
             )
 
-            response.raise_for_status()
 
-            df_response = pd.DataFrame(response.json())
+def _resolve_outdated_signals(
+    df_api: pd.DataFrame,
+    df_lake: pd.DataFrame,
+) -> pd.DataFrame:
+    """Filter outdated signals comparing data from api with data in lake
 
-            df_new_signals = _extend_response(df_response, signal)
+    Performs a full outer join to get the last readings
+    and the last stored readings"""
 
-            logger.info(f"{len(df_new_signals)} new readings fetched")
+    df_recent = df_api.merge(
+        df_lake,
+        left_on="signal_id",
+        right_on="signal_id",
+        how="outer",
+        indicator=True,
+        validate="one_to_one",
+        suffixes=("__dset", "__som"),
+    )
 
-            if not dry_run:
-                df_new_signals.to_sql(
-                    con=db_engine,
-                    name=TABLE_NAME__DSET_METERS_READINGS,
-                    schema=schema,
-                    if_exists="append",
-                    index=False,
-                )
+    df_in_lake_outdated = df_recent.query(
+        "_merge == 'both'"
+        " and signal_last_ts > max_last_ts"
+        " or _merge == 'left_only'"
+    ).replace({np.nan: None})
 
-            else:
-                logger.info("Dry run, not committing to the database")
+    return df_in_lake_outdated
 
 
 def _extend_response(
     df_response: pd.DataFrame,
     signal: dict,
 ) -> pd.DataFrame:
-    """Extend the response from /api/data/{signal_id} so that it matches the schema of the lake table
+    """Extend the response from /api/data/{signal_id} to match the lake
 
-    The response from the DSET API is a list of dictionaries with the following fields:
+    The response from the DSET API is a list of dictionaries with the
+    following fields:
 
     [
         {
@@ -327,7 +302,6 @@ def __transform_group_response(
 
 
 def _get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.DataFrame:
-
     df = pd.read_sql(
         f"""
             SELECT
@@ -355,7 +329,7 @@ def _query_data_latest(
     query_params: dict,
     query_timeout: float,
     base_url: str,
-) -> httpx.Response:
+) -> pd.DataFrame:
     """Query the latest data from the DSET API using the signal id"""
 
     response = httpx.get(
@@ -366,7 +340,65 @@ def _query_data_latest(
     )
 
     response.raise_for_status()
-    return response
+
+    df_response = pd.DataFrame(response.json())
+    return df_response
+
+
+def _append_new_signal_in_db(
+    signal: T.Dict,
+    api_key: str,
+    base_url: str,
+    engine: sa.engine.Engine,
+    schema: str,
+    query_timeout: float,
+    dry_run: bool = True,
+    apply_k_value: bool = True,
+):
+    # we craft a request to fetch data from
+    signal_id = signal["signal_id"]
+
+    if signal["_merge"] == "both":
+        date_from = signal["max_last_ts"]
+    else:
+        date_from = signal["signal_last_ts"]
+
+    tz = pytz.timezone(signal["signal_tz"])
+    date_to = datetime.datetime.now(tz=tz)
+
+    logger.info(f"Updating signal {signal_id} from {date_from} to {date_to}")
+
+    params = {
+        "from": date_from.strftime("%Y-%m-%d"),
+        "to": date_to.strftime("%Y-%m-%d"),
+        "applykvalue": apply_k_value,
+    }
+
+    logger.info(f"Querying data for signal with params: {params}")
+
+    df_response = _query_data_latest(
+        signal_id=signal_id,
+        api_key=api_key,
+        query_params=params,
+        query_timeout=query_timeout,
+        base_url=base_url,
+    )
+
+    df_new_signals = _extend_response(df_response, signal)
+
+    logger.info(f"{len(df_new_signals)} new readings fetched")
+
+    if not dry_run:
+        df_new_signals.to_sql(
+            con=engine,
+            name=TABLE_NAME__DSET_METERS_READINGS,
+            schema=schema,
+            if_exists="append",
+            index=False,
+        )
+
+    else:
+        logger.info("Dry run, not committing to the database")
 
 
 if __name__ == "__main__":
