@@ -1,9 +1,10 @@
 import random
-from airflow import DAG
-from airflow.providers.docker.operators.docker import DockerOperator
-from docker.types import Mount, DriverConfig
 from datetime import datetime, timedelta
+
+from airflow import DAG
 from airflow.models import Variable
+from airflow.providers.docker.operators.docker import DockerOperator
+from docker.types import DriverConfig, Mount
 
 my_email = Variable.get("fail_email")
 addr = Variable.get("repo_server_url")
@@ -49,8 +50,19 @@ def get_random_moll():
     return random.choice(molls)
 
 
+dag_doc = """
+### DAG to read data for meters only
+
+Els comptadors arriben amb un dia de retard. Aquest dag s'encarrega de llegir dades
+nomès de comptadors, filtrant per la seva antiguitat.
+
+Les consultes nomès es fan a nivell de signal_id, és a dir, fan servir un endpoint
+diferent al utilitzat en el dag que llegeix la resta de aparells.
+"""
+
+
 with DAG(
-    dag_id="dset_reader_dag_v2",
+    dag_id="dset_reader_meters_dag_v1",
     start_date=datetime(2022, 12, 2),
     schedule="4-59/5 * * * *",
     catchup=False,
@@ -71,133 +83,20 @@ with DAG(
         ),
         working_dir=f"/repos/{repo_name}",
         command=(
-            "python3 -m scripts.read_dset_api_meters"
-            " get-readings"
+            "python3 -m scripts.read_dset_meters"
+            " get-historic-readings-meters"
             " --db-url {{ var.value.plantmonitor_db }}"
             " --api-base-url {{ var.value.dset_url }}"
             " --api-key {{ var.value.dset_apikey }}"
             " --schema lake"
+            " --apply-k-value"
         ),
-
-
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
         auto_remove="force",
         retrieve_output=True,
         trigger_rule="all_done",
-        force_pull=True,
-    )
-
-
-    # INFO you need to manually create the table with python3 -m scripts.read_dset_api setupdb <dbapi> dset_readings
-
-
-with DAG(
-    dag_id="dset_historic_reader_dag_v3",
-    start_date=datetime(2023, 8, 1),
-    schedule="4-59/5 * * * *",
-    catchup=False,
-    tags=["Dades", "jardiner", "Ingesta", "dset"],
-    default_args=args_with_retries,
-    max_active_runs=5,
-) as dag:
-    repo_name = "somenergia-plant-reader"
-
-    sampled_moll = get_random_moll()
-
-    # e.g. data_interval_start from airflow 2023-08-13T00:00:00+00:00
-    # isoformat utc
-
-    dset_reader_task = DockerOperator(
-        api_version="auto",
-        task_id="dset_plant_reader",
-        docker_conn_id="somenergia_harbor_dades_registry",
-        image="{}/{}-app:latest".format(
-            "{{ conn.somenergia_harbor_dades_registry.host }}",
-            repo_name,
-        ),
-        working_dir=f"/repos/{repo_name}",
-        command=(
-            "python3 -m scripts.read_dset_api get-historic-readings"
-            " --db-url {{ var.value.plantmonitor_db }}"
-            " --api-base-url {{ var.value.dset_url }}"
-            " --endpoint /api/data/ISO_FORMAT"
-            " --api-key {{ var.value.dset_apikey }}"
-            " --from-date {{ data_interval_start }}"
-            " --to-date {{ data_interval_end }}"
-            " --schema lake"
-            " --sig-detail"
-            " --apply-k-value"
-            " --return-null-values"
-            " --query-timeout {{ var.value.get('dset_query_timeout_seconds', 40) | int }}"
-        ),
-        docker_url=sampled_moll,
-        mounts=[mount_nfs],
-        mount_tmp_dir=False,
-        auto_remove="force",
-        retrieve_output=True,
-        trigger_rule="none_failed",
-        force_pull=True,
-    )
-
-
-dset_daily_dag_doc = """
-### Daily dag
-
-Els comptadors arriben amb un dia de retard. Aquest és un dag diari que fa exactament el mateix que el
-dag històric precedent, però amb un offset d'un dia.
-
-Després tenim un camí en el nostre pipe que materialitza un dia més tard.
-"""
-
-with DAG(
-    dag_id="dset_historic_reader_daily_dag",
-    start_date=datetime(2023, 11, 1),
-    schedule="0 5 * * *",
-    catchup=True,
-    tags=["dades", "jardiner", "ingesta", "dset"],
-    default_args=args_with_retries,
-    max_active_runs=5,
-    doc_md=dset_daily_dag_doc
-) as dag:
-    repo_name = "somenergia-plant-reader"
-
-    sampled_moll = get_random_moll()
-
-    # e.g. data_interval_start from airflow 2023-08-13T00:00:00+00:00
-    # isoformat utc
-
-    dset_reader_task = DockerOperator(
-        api_version="auto",
-        task_id="dset_plant_reader_daily",
-        docker_conn_id="somenergia_harbor_dades_registry",
-        image="{}/{}-app:latest".format(
-            "{{ conn.somenergia_harbor_dades_registry.host }}",
-            repo_name,
-        ),
-        working_dir=f"/repos/{repo_name}",
-        command=(
-            "python3 -m scripts.read_dset_api get-historic-readings"
-            " --db-url {{ var.value.plantmonitor_db }}"
-            " --api-base-url {{ var.value.dset_url }}"
-            " --endpoint /api/data/ISO_FORMAT"
-            " --api-key {{ var.value.dset_apikey }}"
-            " --from-date {{ data_interval_start }}"
-            " --to-date {{ data_interval_end }}"
-            " --schema lake"
-            " --sig-detail"
-            " --apply-k-value"
-            " --return-null-values"
-            " --query-timeout {{ var.value.get('dset_query_timeout_seconds', 40) | int }}"
-            " --request-time-offset-min 305"
-        ),
-        docker_url=sampled_moll,
-        mounts=[mount_nfs],
-        mount_tmp_dir=False,
-        auto_remove="force",
-        retrieve_output=True,
-        trigger_rule="none_failed",
         force_pull=True,
     )
 
