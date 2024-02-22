@@ -3,14 +3,16 @@ from sqlalchemy.orm import Session
 from plant_reader.utils import get_config
 import pytest
 
+
 @pytest.fixture(scope="session")
 def engine():
-    '''
+    """
     create a sqlalchemy engine
-    '''
-    dbapi = get_config('testing')
+    """
+    dbapi = get_config("testing")
 
     return create_engine(dbapi)
+
 
 @pytest.fixture
 def dbsession(engine):
@@ -28,6 +30,7 @@ def dbsession(engine):
     transaction.rollback()
     # put back the connection to the connection pool
     connection.close()
+
 
 @pytest.fixture
 def dbconnection(dbsession):
