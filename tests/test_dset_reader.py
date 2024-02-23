@@ -192,7 +192,7 @@ def test___read_dset__base_case(dset_config):
 
 
 @pytest.mark.dset
-@pytest.mark.skipif(True, reason="deprecated by read_store_historic_dset")
+@pytest.mark.skip(reason="deprecated by read_store_historic_dset")
 def test___read_store_dset__base_case(dbconnection, dset_config, dset_tables):
     base_url, apikey, groupapikey = dset_config
     results = read_store_dset(dbconnection, base_url, apikey, schema="public")
@@ -200,7 +200,7 @@ def test___read_store_dset__base_case(dbconnection, dset_config, dset_tables):
 
 
 @pytest.mark.dset
-@pytest.mark.skipif(True, reason="deprecated by store_historic_dset")
+@pytest.mark.skip(reason="deprecated by store_historic_dset")
 def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
     readings = sample_readings()
     stored_readings = store_dset(dbconnection, readings, schema="public")
