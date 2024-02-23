@@ -182,7 +182,7 @@ def test___read_dset__base_case(dset_config):
 
     base_url = dset_config["base_url"]
     apikey = dset_config["apikey"]
-    groupapikey = dset_config["groupapikey"]
+    _ = dset_config["groupapikey"]
     results = read_dset(base_url, apikey)
     result = results[0]
     print(result)

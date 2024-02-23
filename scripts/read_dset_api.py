@@ -140,8 +140,10 @@ def get_historic_readings(
     # hack to make it not inclusive...
     to_date = to_date - datetime.timedelta(seconds=1)
 
-    # temporary workaround to account for the delay of the remote api, see https://gitlab.somenergia.coop/et/somenergia-plant-reader/-/issues/2
-    # might be counter-intuitive since the time range of the airflow interval will not be the actually run
+    # temporary workaround to account for the delay of the remote api,
+    # see https://gitlab.somenergia.coop/et/somenergia-plant-reader/-/issues/2
+    # might be counter-intuitive since the time range of the airflow interval
+    # will not be the actually run
 
     wait_delta = datetime.timedelta(minutes=request_time_offset_min)
     from_date = from_date - wait_delta

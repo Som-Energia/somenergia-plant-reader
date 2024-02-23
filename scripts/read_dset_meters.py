@@ -123,7 +123,7 @@ def get_historic_readings_meters(
             df_lake=df_lake_meters,
         )
 
-        logger.info("Found {len(df_in_lake_outdated)} signals that needs updating")
+        logger.info(f"Found {len(df_in_lake_outdated)} signals that needs updating")
 
         for ix, signal in df_in_lake_outdated.items():
             _append_new_signal_in_db(
