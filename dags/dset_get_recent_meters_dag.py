@@ -76,7 +76,7 @@ with DAG(
 
     dset_read_meters = DockerOperator(
         api_version="auto",
-        task_id="dset_plant_reader_alternative",
+        task_id="dset_plant_reader_read_meters",
         docker_conn_id="somenergia_harbor_dades_registry",
         image="{}/{}-app:latest".format(
             "{{ conn.somenergia_harbor_dades_registry.host }}", repo_name
