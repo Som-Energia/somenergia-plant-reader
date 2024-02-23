@@ -328,7 +328,7 @@ def _query_data_latest(
     """Query the latest data from the DSET API using the signal id"""
 
     response = httpx.get(
-        url=base_url + f"/api/data/export/{signal_id}",
+        url=base_url + f"/api/data/ISO_FORMAT/export/{signal_id}",
         params=query_params,
         headers={"Authorization": api_key},
         timeout=Timeout(timeout=query_timeout),
@@ -364,8 +364,8 @@ def _append_new_signal_in_db(
     logger.info(f"Updating signal {signal_id} from {date_from} to {date_to}")
 
     params = {
-        "from": date_from.strftime("%Y-%m-%d"),
-        "to": date_to.strftime("%Y-%m-%d"),
+        "from": date_from.isoformat(),
+        "to": date_to.isoformat(),
         "applykvalue": apply_k_value,
     }
 
