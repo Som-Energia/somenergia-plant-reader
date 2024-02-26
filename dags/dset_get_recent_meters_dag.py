@@ -62,9 +62,9 @@ diferent al utilitzat en el dag que llegeix la resta de aparells.
 
 
 with DAG(
-    dag_id="dset_reader_meters_dag_v1",
+    dag_id="dset_reader_meters_dag_v2",
     start_date=datetime(2022, 12, 2),
-    schedule="4-59/5 * * * *",
+    schedule="40 * * * *",
     catchup=False,
     tags=["dades", "jardiner", "dset"],
     default_args=args,
