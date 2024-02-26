@@ -356,7 +356,6 @@ def _append_new_signal_in_db(
     dry_run: bool = True,
     apply_k_value: bool = True,
 ):
-    import ipdb; ipdb.set_trace()
     # we craft a request to fetch data from
     signal_id = signal["signal_id"]
 
