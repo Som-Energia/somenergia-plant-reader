@@ -125,7 +125,7 @@ def get_historic_readings_meters(
 
         logger.info(f"Found {len(df_in_lake_outdated)} signals that needs updating")
 
-        for ix, signal in df_in_lake_outdated.items():
+        for ix, signal in df_in_lake_outdated.iterrows():
             _append_new_signal_in_db(
                 signal,
                 api_key=apikey,
@@ -350,6 +350,7 @@ def _append_new_signal_in_db(
     dry_run: bool = True,
     apply_k_value: bool = True,
 ):
+    import ipdb; ipdb.set_trace()
     # we craft a request to fetch data from
     signal_id = signal["signal_id"]
 
