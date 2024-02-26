@@ -247,7 +247,7 @@ def get_dset_to_db(
         endpoint,
         params=queryparams,
         headers={"Authorization": apikey},
-        timeout=Timeout(timeout=10.0),
+        timeout=Timeout(timeout=30.0),
     )
 
     response.raise_for_status()

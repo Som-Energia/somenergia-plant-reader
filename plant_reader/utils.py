@@ -22,12 +22,12 @@ class AbstractConfig(ABC):
         return dotenv_values(self._dotenv_file)["base_url"]
 
     @property
-    def api_key(self) -> str:
-        return dotenv_values(self._dotenv_file)["api_key"]
+    def dset_api_key(self) -> str:
+        return dotenv_values(self._dotenv_file)["dset_api_key"]
 
     @property
-    def group_api_key(self) -> str:
-        return dotenv_values(self._dotenv_file)["group_api_key"]
+    def dset_group_api_key(self) -> str:
+        return dotenv_values(self._dotenv_file)["dset_group_api_key"]
 
     @property
     def db_url(self) -> str:
@@ -46,13 +46,13 @@ class TestConfig(AbstractConfig):
         )
 
     @property
-    def api_key(self) -> str:
-        return dotenv_values(self._dotenv_file).get("api_key", "default_api_key")
+    def dset_api_key(self) -> str:
+        return dotenv_values(self._dotenv_file).get("dset_api_key", "default_api_key")
 
     @property
-    def group_api_key(self) -> str:
+    def dset_group_api_key(self) -> str:
         return dotenv_values(self._dotenv_file).get(
-            "group_api_key",
+            "dset_group_api_key",
             "default_group_api_key",
         )
 
