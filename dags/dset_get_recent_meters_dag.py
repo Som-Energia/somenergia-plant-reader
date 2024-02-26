@@ -84,7 +84,6 @@ with DAG(
         working_dir=f"/repos/{repo_name}",
         command=(
             "python3 -m scripts.read_dset_meters"
-            " get-historic-readings-meters"
             " --db-url {{ var.value.plantmonitor_db }}"
             " --api-base-url {{ var.value.dset_url }}"
             " --api-key {{ var.value.dset_apikey }}"
