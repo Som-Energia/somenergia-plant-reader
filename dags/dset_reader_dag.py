@@ -89,7 +89,8 @@ with DAG(
         force_pull=True,
     )
 
-    # INFO you need to manually create the table with python3 -m scripts.read_dset_api setupdb <dbapi> dset_readings
+    # INFO you need to manually create the table with
+    # python3 -m scripts.read_dset_api setupdb <dbapi> dset_readings
 
 
 with DAG(
@@ -144,8 +145,8 @@ with DAG(
 dset_daily_dag_doc = """
 ### Daily dag
 
-Els comptadors arriben amb un dia de retard. Aquest és un dag diari que fa exactament el mateix que el
-dag històric precedent, però amb un offset d'un dia.
+Els comptadors arriben amb un dia de retard. Aquest és un dag diari
+que fa exactament el mateix que el dag històric precedent, però amb un offset d'un dia.
 
 Després tenim un camí en el nostre pipe que materialitza un dia més tard.
 """

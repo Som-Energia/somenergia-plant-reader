@@ -1,6 +1,5 @@
 import random
 from airflow import DAG
-from datetime import timedelta
 from airflow.providers.docker.operators.docker import DockerOperator
 from docker.types import Mount, DriverConfig
 from datetime import datetime, timedelta
