@@ -206,6 +206,9 @@ def _extend_response(
             "signal_last_ts": "2024-02-13 23:45:00",
             "signal_last_value": 0,
             "signal_unit": "kWh"
+            "signal_external_id": blabla,
+            "signal_device_external_description"; blabla,
+            "signal_device_external_id": blabla,
             "ts": "2021-01-01 00:00:00", # new from the response
             "signal_value": 77 # new from the response
         }
@@ -223,6 +226,9 @@ def _extend_response(
     df_response["signal_is_virtual"] = signal["signal_is_virtual"]
     df_response["signal_tz"] = signal["signal_tz"]
     df_response["signal_unit"] = signal["signal_unit"]
+    df_response["signal_external_id"] = signal["signal_external_id"]
+    df_response["signal_device_external_description"] = signal["signal_device_external_description"]  # noqa: E501
+    df_response["signal_device_external_id"] = signal["signal_device_external_id"]
     df_response["signal_last_ts"] = signal["max_last_ts"]
     df_response["signal_last_value"] = signal["max_last_ts_value"]
 
