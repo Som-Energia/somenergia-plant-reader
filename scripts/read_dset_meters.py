@@ -137,6 +137,7 @@ def get_historic_readings_meters(
                 api_key=apikey,
                 base_url=base_url,
                 apply_k_value=apply_k_value,
+                sig_detail=sig_detail,
                 engine=db_engine,
                 schema=schema,
                 query_timeout=query_timeout,
@@ -355,6 +356,7 @@ def _append_new_signal_in_db(
     query_timeout: float,
     dry_run: bool = True,
     apply_k_value: bool = True,
+    sig_detail: bool = True,
 ):
     # we craft a request to fetch data from
     signal_id = signal["signal_id"]
@@ -373,6 +375,8 @@ def _append_new_signal_in_db(
         "from": date_from.isoformat(),
         "to": date_to.isoformat(),
         "applykvalue": apply_k_value,
+        "sig_detail": sig_detail,
+
     }
 
     logger.info(f"Querying data for signal with params: {params}")
