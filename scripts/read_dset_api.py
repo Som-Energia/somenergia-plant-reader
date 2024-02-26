@@ -1,16 +1,13 @@
 import datetime
 import logging
-import typing as T
 
 import httpx
 import typer
 from httpx import Timeout
-from sqlalchemy import create_engine
+import sqlalchemy as sa
 
 from plant_reader import (
     get_config,
-    get_dset_to_db,
-    localize_time_range,
     read_dset,
     read_store_dset,
 )
@@ -35,9 +32,9 @@ def setupdb(
     table: str,
     schema: str,
 ):
-    dbapi = get_config(dbapi)
+    config = get_config(environment=dbapi)
 
-    db_engine = create_engine(dbapi)
+    db_engine = sa.create_engine(config.db_url)
     with db_engine.begin() as conn:
         create_table(conn, table, schema=schema)
 
@@ -48,9 +45,10 @@ def create_responses_table(
     schema: str,
 ):
     table = "dset_responses"
-    dbapi = get_config(dbapi)
 
-    db_engine = create_engine(dbapi)
+    config = get_config(environment=dbapi)
+    db_engine = sa.create_engine(config.db_url)
+
     with db_engine.begin() as conn:
         create_response_table(conn, table, schema=schema)
 
@@ -73,7 +71,7 @@ def get_readings(
     apikey: str = typer.Option(..., "--api-key"),
     schema: str = typer.Option("public", "--schema"),
 ):
-    db_engine = create_engine(dbapi)
+    db_engine = sa.create_engine(dbapi)
     with db_engine.begin() as conn:
         logger.info(f"Reading {base_url}")
         readings = read_store_dset(conn, base_url, apikey, schema)
@@ -85,10 +83,12 @@ def get_readings(
 @app.command()
 def get_historic_readings(
     dbapi: str = typer.Option(..., "--db-url"),
-    base_url: str = typer.Option(..., "--api-base-url"),
+    base_url: str = typer.Option(
+        ..., "--api-base-url", help="Base URL of the DSET api"
+    ),
     apikey: str = typer.Option(..., "--api-key"),
-    schema: str = typer.Option(..., "--schema"),
-    endpoint: str = typer.Option("/api/data", "--endpoint"),
+    schema: str = typer.Option(..., "--schema", help="Schema to store the readings"),
+    endpoint: str = typer.Option(..., "--endpoint", help="Endpoint to request"),
     from_date: datetime.datetime = typer.Option(
         ...,
         "--from-date",
@@ -125,7 +125,10 @@ def get_historic_readings(
         False, "--sig-detail", help="Provide extra fields", is_flag=True
     ),
     apply_k_value: bool = typer.Option(
-        False, "--apply-k-value", help="Apply dset k value transformations factor", is_flag=True
+        False,
+        "--apply-k-value",
+        help="Apply dset k value transformations factor",
+        is_flag=True,
     ),
     return_null_values: bool = typer.Option(
         False, "--return-null-values", help="Put null on missing values", is_flag=True
@@ -137,8 +140,10 @@ def get_historic_readings(
     # hack to make it not inclusive...
     to_date = to_date - datetime.timedelta(seconds=1)
 
-    # temporary workaround to account for the delay of the remote api, see https://gitlab.somenergia.coop/et/somenergia-plant-reader/-/issues/2
-    # might be counter-intuitive since the time range of the airflow interval will not be the actually run
+    # temporary workaround to account for the delay of the remote api,
+    # see https://gitlab.somenergia.coop/et/somenergia-plant-reader/-/issues/2
+    # might be counter-intuitive since the time range of the airflow interval
+    # will not be the actually run
 
     wait_delta = datetime.timedelta(minutes=request_time_offset_min)
     from_date = from_date - wait_delta
@@ -152,17 +157,11 @@ def get_historic_readings(
         "returnNullValues": return_null_values,
     }
 
-    db_engine = create_engine(dbapi)
+    db_engine = sa.create_engine(dbapi)
     full_url = base_url + endpoint
 
     with db_engine.begin() as conn:
-        logging.info(
-            (
-                f"Reading {base_url}"
-                f" from {from_date}"
-                f" to {to_date}"
-            )
-        )
+        logging.info((f"Reading {base_url} from {from_date} to {to_date}"))
 
         response = httpx.get(
             full_url,
