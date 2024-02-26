@@ -90,6 +90,9 @@ def get_historic_readings_meters(
         "signal_last_ts": "datetime64[ns, Europe/Madrid]",
         "signal_last_value": "float64",
         "signal_unit": "string",
+        "signal_external_id": "string",
+        "signal_device_external_description": "string",
+        "signal_device_external_id": "string",
     }
 
     df_last_signals = pd.DataFrame(filtered_signals).astype(_signals_dtype)
@@ -382,7 +385,6 @@ def _append_new_signal_in_db(
         "to": date_to.isoformat(),
         "applykvalue": apply_k_value,
         "sig_detail": sig_detail,
-
     }
 
     logger.info(f"Querying data for signal with params: {params}")
