@@ -180,9 +180,9 @@ def dset_tables(dbconnection):
 @pytest.mark.dset
 def test___read_dset__base_case(dset_config):
 
-    base_url = dset_config["base_url"]
-    apikey = dset_config["apikey"]
-    _ = dset_config["groupapikey"]
+    base_url = dset_config.base_url
+    apikey = dset_config.dset_api_key
+    _ = dset_config.dset_group_api_key
     results = read_dset(base_url, apikey)
     result = results[0]
     print(result)
@@ -210,14 +210,14 @@ def test___store_dset__base_case(dbconnection, dset_config, dset_tables):
     # dset data specific
 
 
-# @pytest.mark.dset
+@pytest.mark.dset
 def test___dset_schema_changes(dset_config):
     base_url = dset_config.base_url
-    apikey = dset_config.api_key
-    endpoint = f"{base_url}/api/data"
+    apikey = dset_config.dset_api_key
+    endpoint = f"{base_url}/api/data/ISO_FORMAT"
 
-    from_ts = datetime.datetime(2023, 10, 1, 13, 0, tzinfo=datetime.timezone.utc)
-    to_ts = datetime.datetime(2023, 10, 1, 13, 5, tzinfo=datetime.timezone.utc)
+    from_ts = datetime.datetime(2024, 2, 1, 13, 0, tzinfo=datetime.timezone.utc)
+    to_ts = datetime.datetime(2024, 2, 1, 13, 5, tzinfo=datetime.timezone.utc)
 
     to_ts_exclusive = to_ts - datetime.timedelta(seconds=1)
 
@@ -230,7 +230,7 @@ def test___dset_schema_changes(dset_config):
     }
 
     response = httpx.get(
-        endpoint, params=params, headers={"Authorization": apikey}, timeout=10.0
+        endpoint, params=params, headers={"Authorization": apikey}, timeout=30.0
     )
 
     response.raise_for_status()
@@ -285,8 +285,9 @@ def test___localize_time_range():
 
 @pytest.mark.dset
 def test___read_store_dset_historic__base_case(dbconnection, dset_config, dset_tables):
-    base_url, apikey, groupapikey = dset_config
-    endpoint = f"{base_url}/api/data"
+    base_url = dset_config.base_url
+    apikey = dset_config.dset_api_key
+    endpoint = f"{base_url}/api/data/ISO_FORMAT"
     from_ts = datetime.datetime(2023, 10, 20, 13, 0, tzinfo=datetime.timezone.utc)
     to_ts = datetime.datetime(2023, 10, 20, 13, 5, tzinfo=datetime.timezone.utc)
 
