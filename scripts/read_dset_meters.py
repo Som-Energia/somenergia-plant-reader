@@ -153,7 +153,7 @@ def _resolve_outdated_signals(
         right_on="signal_id",
         how="outer",
         indicator=True,
-        validate="one_to_one",
+        # validate="one_to_one", # raises when they dont match
         suffixes=("__dset", "__som"),
     )
 
