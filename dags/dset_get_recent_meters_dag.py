@@ -88,6 +88,7 @@ with DAG(
             " --api-base-url {{ var.value.dset_url }}"
             " --api-key {{ var.value.dset_apikey }}"
             " --schema lake"
+            " --sig-detail"
             " --apply-k-value"
         ),
         docker_url=sampled_moll,

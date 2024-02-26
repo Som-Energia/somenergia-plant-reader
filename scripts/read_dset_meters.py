@@ -34,6 +34,9 @@ def get_historic_readings_meters(
     query_timeout: float = typer.Option(
         10.0, "--query-timeout", help="Query timeout in seconds"
     ),
+    sig_detail: bool = typer.Option(
+        False, "--sig-detail", help="Provide extra fields", is_flag=True
+    ),
     apply_k_value: bool = typer.Option(
         False,
         "--apply-k-value",
@@ -46,7 +49,10 @@ def get_historic_readings_meters(
 ):
     """Get historic readings from the DSET API and compare with what we have"""
 
-    queryparams = {}
+    queryparams = {
+        "sig_detail": sig_detail,
+        "applykvalue": apply_k_value,
+    }
 
     logger.info("Fetching groups from the DSET API")
 
