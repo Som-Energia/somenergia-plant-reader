@@ -4,7 +4,7 @@ from typing import List
 import typer
 from sqlalchemy import create_engine
 
-from plant_reader import get_config, main_read_store, read_modbus
+from plant_reader import main_read_store, read_modbus
 from plant_reader.modbus_reader import create_table
 
 logger = logging.getLogger(__name__)
@@ -18,8 +18,7 @@ def setupdb(
     table: str,
     schema: str,
 ):
-    config = get_config(environment=dbapi)
-    db_engine = create_engine(config.db_url)
+    db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
         create_table(conn, table, schema=schema)
 
