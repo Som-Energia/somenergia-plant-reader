@@ -3,9 +3,9 @@ import pytest
 
 
 def mock__get_lake_latest_signals(
+    max_last_ts: pd.Timestamp,
     signal_id: int = 1,
     max_last_ts_value: float = 1.0,
-    max_last_ts: pd.Timestamp = pd.Timestamp("2022-12-02 00:00:00"),
 ):
     mock_response = [
         {
@@ -19,7 +19,7 @@ def mock__get_lake_latest_signals(
 
 
 def mock__query_data_latest(
-    signal_last_ts: pd.Timestamp = "2024-02-13 23:45:00",
+    signal_last_ts: pd.Timestamp,
 ):
     mock_response = [
         {
@@ -46,12 +46,14 @@ def test_table_creation_fails_if_exists(mocker):
     import scripts.read_dset_meters
 
     mocker.patch(
-        "scripts.read_dset_meters._get_lake_latest_signals",
+        "scripts.read_dset_meters.__get_lake_latest_signals",
         mock__get_lake_latest_signals,
     )
 
-    result = scripts.read_dset_meters._get_lake_latest_signals()
-    expected = mock__get_lake_latest_signals()
+    DEFAULT_MAX_LAST_TS = pd.Timestamp("2022-12-02 00:00:00")
+
+    result = scripts.read_dset_meters.__get_lake_latest_signals()
+    expected = mock__get_lake_latest_signals(max_last_ts=DEFAULT_MAX_LAST_TS)
 
     pd.testing.assert_frame_equal(result, expected)
 

@@ -125,17 +125,17 @@ def get_historic_readings_meters(
     else:
         logger.info("Table exists, comparing last readings with stored ones")
 
-        df_lake_meters = _get_lake_latest_signals(schema, db_engine)
+        df_lake_meters = __get_lake_latest_signals(schema, db_engine)
 
-        df_in_lake_outdated = _resolve_outdated_signals(
+        df_in_lake_outdated = __resolve_outdated_signals(
             df_api=df_last_signals,
             df_lake=df_lake_meters,
         )
 
         logger.info(f"Found {len(df_in_lake_outdated)} signals that needs updating")
 
-        for ix, signal in df_in_lake_outdated.iterrows():
-            _append_new_signal_in_db(
+        for _, signal in df_in_lake_outdated.iterrows():
+            __append_new_signal_in_db(
                 signal,
                 api_key=apikey,
                 base_url=base_url,
@@ -148,7 +148,7 @@ def get_historic_readings_meters(
             )
 
 
-def _resolve_outdated_signals(
+def __resolve_outdated_signals(
     df_api: pd.DataFrame,
     df_lake: pd.DataFrame,
 ) -> pd.DataFrame:
@@ -176,7 +176,7 @@ def _resolve_outdated_signals(
     return df_in_lake_outdated
 
 
-def _extend_response(
+def __extend_response(
     df_response: pd.DataFrame,
     signal: dict,
 ) -> pd.DataFrame:
@@ -230,7 +230,7 @@ def _extend_response(
     df_response["signal_tz"] = signal["signal_tz"]
     df_response["signal_unit"] = signal["signal_unit"]
     df_response["signal_external_id"] = signal["signal_external_id"]
-    df_response["signal_device_external_description"] = signal["signal_device_external_description"]  # noqa: E501
+    df_response["signal_device_external_description"] = signal["signal_device_external_description"]  # fmt: skip
     df_response["signal_device_external_id"] = signal["signal_device_external_id"]
     df_response["signal_last_ts"] = signal["max_last_ts"]
     df_response["signal_last_value"] = signal["max_last_ts_value"]
@@ -312,7 +312,7 @@ def __transform_group_response(
     ]
 
 
-def _get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.DataFrame:
+def __get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.DataFrame:
     df = pd.read_sql(
         f"""
             SELECT
@@ -334,7 +334,7 @@ def _get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.Dat
     return df
 
 
-def _query_data_latest(
+def __query_data_latest(
     signal_id: str,
     api_key: str,
     query_params: dict,
@@ -356,7 +356,7 @@ def _query_data_latest(
     return df_response
 
 
-def _append_new_signal_in_db(
+def __append_new_signal_in_db(
     signal: T.Dict,
     api_key: str,
     base_url: str,
@@ -389,7 +389,7 @@ def _append_new_signal_in_db(
 
     logger.info(f"Querying data for signal with params: {params}")
 
-    df_response = _query_data_latest(
+    df_response = __query_data_latest(
         signal_id=signal_id,
         api_key=api_key,
         query_params=params,
@@ -397,7 +397,7 @@ def _append_new_signal_in_db(
         base_url=base_url,
     )
 
-    df_new_signals = _extend_response(df_response, signal)
+    df_new_signals = __extend_response(df_response, signal)
 
     logger.info(f"{len(df_new_signals)} new readings fetched")
 
