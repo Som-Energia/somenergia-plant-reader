@@ -1,9 +1,9 @@
 import logging
-from typing import List, Tuple
+from typing import List
+
 import typer
 from sqlalchemy import create_engine
 
-from plant_reader import get_config
 from plant_reader import main_read_store, read_modbus
 from plant_reader.modbus_reader import create_table
 
@@ -18,25 +18,29 @@ def setupdb(
     table: str,
     schema: str,
 ):
-
-    config = get_config(environment=dbapi)
-    db_engine = create_engine(config.db_url)
+    db_engine = create_engine(dbapi)
     with db_engine.begin() as conn:
         create_table(conn, table, schema=schema)
 
 
 @app.command()
 def get_readings(
-    dbapi: str,
-    table: str,
-    ip: str,
-    port: int,
-    type: str,
-    modbus_tuple: List[str],
+    dbapi: str = typer.Option(..., "--dbapi", help="SQLAlchemy url of the db to use"),
+    table: str = typer.Option(..., "--table", help="Table to store readings"),
+    ip: str = typer.Option(..., "--ip", help="IP address of modbus device"),
+    port: int = typer.Option(..., "--port", help="Port of modbus device"),
+    type: str = typer.Option(..., "--type", help="Type of modbus device"),
+    modbus_tuple: List[str] = typer.Option(
+        ...,
+        "--modbus-tuple",
+        help=(
+            "Tuple describing a modbus mapping in the form <unit>:<address>:<count>."
+            " Can be repeated multiple times."
+        ),
+        callback=lambda mts: [tuple(map(int, mt.split(":"))) for mt in mts],
+    ),
     schema: str = typer.Option("public", "--schema"),
 ):
-    config = get_config(environment=dbapi)
-
     logger.debug("Connecting to DB")
 
     if not modbus_tuple:
@@ -45,25 +49,34 @@ def get_readings(
         )
         raise typer.Abort()
 
-    modbus_tuples = [tuple(int(e) for e in mt.split(":")) for mt in modbus_tuple]
-
-    db_engine = create_engine(config.db_url)
+    db_engine = create_engine(dbapi)
 
     with db_engine.begin() as conn:
-        main_read_store(conn, table, ip, port, type, modbus_tuples, schema)
+        main_read_store(conn, table, ip, port, type, modbus_tuple, schema)
 
     return 0
 
 
 @app.command()
-def print_multiple_readings(ip: str, port: int, type: str, modbus_tuple: List[str]):
+def print_multiple_readings(
+    ip: str = typer.Option(..., "--ip", help="IP address of modbus device"),
+    port: int = typer.Option(..., "--port", help="Port of modbus device"),
+    type: str = typer.Option(..., "--type", help="Type of modbus device"),
+    modbus_tuple: List[str] = typer.Option(
+        ...,
+        "--modbus-tuple",
+        help=(
+            "Modbus tuple in the form <unit>:<address>:<count>."
+            " Can be repeated multiple times."
+        ),
+        callback=lambda mts: [tuple(map(int, mt.split(":"))) for mt in mts],
+    ),
+):
     logger.info("Reading modbus")
 
-    modbus_tuples = [tuple(int(e) for e in mt.split(":")) for mt in modbus_tuple]
+    logger.info(modbus_tuple)
 
-    logger.info(modbus_tuples)
-
-    for mt in modbus_tuples:
+    for mt in modbus_tuple:
         slave, register_address, count = mt
         logger.info(f"Read modbus tuple: {slave} {register_address} {count}")
 
