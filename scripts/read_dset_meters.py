@@ -95,6 +95,25 @@ def get_historic_readings_meters(
         "signal_device_external_id": "string",
     }
 
+    _signals_sql_types = {
+        "group_id": sa.Integer,
+        "group_code": sa.String,
+        "group_name": sa.String,
+        "signal_id": sa.Integer,
+        "signal_code": sa.String,
+        "signal_description": sa.String,
+        "signal_frequency": sa.String,
+        "signal_type": sa.String,
+        "signal_is_virtual": sa.Boolean,
+        "signal_tz": sa.String,
+        "signal_last_ts": sa.DateTime(timezone=True),
+        "signal_last_value": sa.Float,
+        "signal_unit": sa.String,
+        "signal_external_id": sa.String,
+        "signal_device_external_description": sa.String,
+        "signal_device_external_id": sa.String,
+    }
+
     df_last_signals = pd.DataFrame(filtered_signals).astype(_signals_dtype)
     db_engine = sa.create_engine(dbapi)
 
@@ -121,6 +140,7 @@ def get_historic_readings_meters(
             schema=schema,
             if_exists="fail",
             index=False,
+            dtype=_signals_sql_types,
         )
     else:
         logger.info("Table exists, comparing last readings with stored ones")
