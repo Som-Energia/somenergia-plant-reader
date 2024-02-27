@@ -1,18 +1,19 @@
-import logging
 import datetime
-from pymodbus.client import ModbusTcpClient
+import logging
+import typing as T
 
+from pymodbus.client import ModbusTcpClient
 from sqlalchemy import (
-    table,
-    column,
-    insert,
-    MetaData,
-    Integer,
-    DateTime,
     Boolean,
     Column,
+    DateTime,
+    Integer,
+    MetaData,
     String,
     Table,
+    column,
+    insert,
+    table,
 )
 
 
@@ -78,12 +79,12 @@ def read_modbus(ip, port, type, register_address, count, slave, timeout=20):
 
 
 def main_read_store(
-    conn,
-    table,
-    ip,
-    port,
-    type,
-    modbus_tuples,
+    conn: str,
+    table: str,
+    ip: str,
+    port: int,
+    type: str,
+    modbus_tuples: T.List[T.Tuple[int, int, int]],
     schema: str,
 ):
     dbtable = get_table(table, schema=schema)
@@ -112,7 +113,7 @@ def main_read_store(
                     unit=unit,
                 )
 
-                result = conn.execute(insert_statement)
+                conn.execute(insert_statement)
         except ModbusException as e:
             logging.error(e)
 
@@ -127,6 +128,6 @@ def main_read_store(
                 unit=unit,
             )
 
-            result = conn.execute(insert_statement)
+            conn.execute(insert_statement)
 
     return 0
