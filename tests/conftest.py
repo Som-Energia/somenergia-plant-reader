@@ -1,7 +1,34 @@
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from plant_reader.utils import get_config, Environment
-import pytest
+
+from plant_reader.utils import Environment, get_config
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--dset",
+        action="store_true",
+        default=False,
+        help="run dset api tests",
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "dset: mark test as against dset api to run",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--dset"):
+        # --dset given in cli: do not skip slow tests
+        return
+    skip_dset = pytest.mark.skip(reason="need --dset option to run")
+    for item in items:
+        if "dset" in item.keywords:
+            item.add_marker(skip_dset)
 
 
 @pytest.fixture(scope="session")
@@ -16,7 +43,7 @@ def engine():
 
 @pytest.fixture
 def dbsession(engine):
-    """Returns an sqlalchemy session, and after the test tears down everything properly."""
+    """Returns an sqlalchemy session, and tears down everything afterwards"""
     connection = engine.connect()
     # begin the nested transaction
     transaction = connection.begin()

@@ -1,9 +1,10 @@
 import random
-from airflow import DAG
-from airflow.providers.docker.operators.docker import DockerOperator
-from docker.types import Mount, DriverConfig
 from datetime import datetime, timedelta
+
+from airflow import DAG
 from airflow.models import Variable
+from airflow.providers.docker.operators.docker import DockerOperator
+from docker.types import DriverConfig, Mount
 
 my_email = Variable.get("fail_email")
 addr = Variable.get("repo_server_url")
@@ -64,9 +65,14 @@ with DAG(
         working_dir=f"/repos/{repo_name}",
         command=(
             "python3 -m scripts.main get-readings"
-            " {{ var.value.plantmonitor_db }}"
-            " modbus_readings planta-asomada.somenergia.coop"
-            " 1502 input 3:0:82 32:54:16 33:54:16"
+            " --db-url {{ var.value.plantmonitor_db }}"
+            " --table modbus_readings"
+            " --ip planta-asomada.somenergia.coop"
+            " --port 1502"
+            " --type input"
+            " --modbus-tuple 3:0:82"
+            " --modbus-tuple 32:54:16"
+            " --modbus-tuple 33:54:16"
             " --schema lake"
         ),
         docker_url=sampled_moll,
@@ -101,8 +107,10 @@ with DAG(
         working_dir=f"/repos/{repo_name}",
         command=(
             "python3 -m scripts.main print-multiple-readings"
-            " planta-asomada.somenergia.coop"
-            " 1502 input 120:11:10"
+            " --ip planta-asomada.somenergia.coop"
+            " --port 1502"
+            " --type input"
+            " --modbus-tuple 120:11:10"
         ),
         docker_url=sampled_moll,
         mounts=[mount_nfs],
