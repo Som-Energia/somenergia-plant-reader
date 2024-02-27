@@ -70,9 +70,9 @@ with DAG(
             " --ip planta-asomada.somenergia.coop"
             " --port 1502"
             " --type input"
-            " --modbus-tuple 3 0 82"
-            " --modbus-tuple 32 54 16"
-            " --modbus-tuple 33 54 16"
+            " --modbus-tuple 3:0:82"
+            " --modbus-tuple 32:54:16"
+            " --modbus-tuple 33:54:16"
             " --schema lake"
         ),
         docker_url=sampled_moll,
