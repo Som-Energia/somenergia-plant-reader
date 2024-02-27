@@ -65,7 +65,7 @@ with DAG(
         working_dir=f"/repos/{repo_name}",
         command=(
             "python3 -m scripts.main get-readings"
-            " --db-url {{ var.value.plantmonitor_db }}"
+            " --dbapi {{ var.value.plantmonitor_db }}"
             " --table modbus_readings"
             " --ip planta-asomada.somenergia.coop"
             " --port 1502"
