@@ -107,8 +107,10 @@ with DAG(
         working_dir=f"/repos/{repo_name}",
         command=(
             "python3 -m scripts.main print-multiple-readings"
-            " planta-asomada.somenergia.coop"
-            " 1502 input 120:11:10"
+            " --ip planta-asomada.somenergia.coop"
+            " --port 1502"
+            " --type input"
+            " --modbus-tuple 120:11:10"
         ),
         docker_url=sampled_moll,
         mounts=[mount_nfs],

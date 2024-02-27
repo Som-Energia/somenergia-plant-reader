@@ -34,7 +34,10 @@ def get_readings(
     modbus_tuple: List[str] = typer.Option(
         ...,
         "--modbus-tuple",
-        help="Tuple describing a modbus mapping in the form <unit>:<address>:<count>",
+        help=(
+            "Tuple describing a modbus mapping in the form <unit>:<address>:<count>."
+            " Can be repeated multiple times."
+        ),
         callback=lambda mts: [tuple(map(int, mt.split(":"))) for mt in mts],
     ),
     schema: str = typer.Option("public", "--schema"),
@@ -56,14 +59,25 @@ def get_readings(
 
 
 @app.command()
-def print_multiple_readings(ip: str, port: int, type: str, modbus_tuple: List[str]):
+def print_multiple_readings(
+    ip: str = typer.Option(..., "--ip", help="IP address of modbus device"),
+    port: int = typer.Option(..., "--port", help="Port of modbus device"),
+    type: str = typer.Option(..., "--type", help="Type of modbus device"),
+    modbus_tuple: List[str] = typer.Option(
+        ...,
+        "--modbus-tuple",
+        help=(
+            "Modbus tuple in the form <unit>:<address>:<count>."
+            " Can be repeated multiple times."
+        ),
+        callback=lambda mts: [tuple(map(int, mt.split(":"))) for mt in mts],
+    ),
+):
     logger.info("Reading modbus")
 
-    modbus_tuples = [tuple(int(e) for e in mt.split(":")) for mt in modbus_tuple]
+    logger.info(modbus_tuple)
 
-    logger.info(modbus_tuples)
-
-    for mt in modbus_tuples:
+    for mt in modbus_tuple:
         slave, register_address, count = mt
         logger.info(f"Read modbus tuple: {slave} {register_address} {count}")
 

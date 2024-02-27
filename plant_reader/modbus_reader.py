@@ -55,7 +55,15 @@ def get_table(table_name, schema: str = "public"):
     )
 
 
-def read_modbus(ip, port, type, register_address, count, slave, timeout=20):
+def read_modbus(
+    ip: str,
+    port: int,
+    type: str,
+    register_address: int,
+    count: int,
+    slave: int,
+    timeout: int = 20,
+):
     client = ModbusTcpClient(
         ip, timeout=timeout, RetryOnEmpty=True, retries=3, port=port
     )
