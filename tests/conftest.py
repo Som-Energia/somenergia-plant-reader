@@ -67,3 +67,10 @@ def dbconnection(dbsession):
 @pytest.fixture
 def dset_config():
     yield get_config(Environment.TESTING)
+
+
+@pytest.fixture
+def cli_runner():
+    from typer.testing import CliRunner
+
+    return CliRunner()
