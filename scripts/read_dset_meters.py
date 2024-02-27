@@ -126,8 +126,7 @@ def get_historic_readings_meters(
 
     if not table_exists:
         # we update fields to match the lake table
-        df_last_signals["ts"] = df_last_signals["signal_last_ts"]
-        df_last_signals["signal_value"] = df_last_signals["signal_last_value"]
+        df_last_signals = __extend_df_first_insert(df_last_signals)
 
         logger.info(
             f"Table {schema}.{TABLE_NAME__DSET_METERS_READINGS}"
@@ -166,6 +165,15 @@ def get_historic_readings_meters(
                 query_timeout=query_timeout,
                 dry_run=dry_run,
             )
+
+
+def __extend_df_first_insert(df_last_signals):
+    """Extends a dataframe to match the lake table in the first insert."""
+
+    df_last_signals["ts"] = df_last_signals["signal_last_ts"]
+    df_last_signals["signal_value"] = df_last_signals["signal_last_value"]
+
+    return df_last_signals
 
 
 def __resolve_outdated_signals(
