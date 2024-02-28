@@ -315,11 +315,12 @@ def __transform_group_response(
 def _get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.DataFrame:
     df = pd.read_sql(
         f"""
-            SELECT
+            select distinct on (signal_id)
                 signal_id,
                 signal_value as max_last_ts_value,
-                max(ts) OVER (PARTITION BY signal_id) AS max_last_ts
-            FROM plants.{schema}.{TABLE_NAME__DSET_METERS_READINGS}
+                ts as max_last_ts
+            from plants.{schema}.{TABLE_NAME__DSET_METERS_READINGS}
+            order by signal_id, ts desc
             """,
         db_engine,
         parse_dates=["max_last_ts"],
