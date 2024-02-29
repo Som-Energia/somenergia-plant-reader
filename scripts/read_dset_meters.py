@@ -207,7 +207,7 @@ def __extend_response(
     df_response: pd.DataFrame,
     signal: dict,
 ) -> pd.DataFrame:
-    """Extend the response from /api/data/{signal_id} to match the lake
+    """Extend the response from /api/data/{signal_id} to match the schema in the lake table
 
     The response from the DSET API is a list of dictionaries with the
     following fields:
@@ -233,12 +233,12 @@ def __extend_response(
             "signal_type": "absolute",
             "signal_is_virtual": False,
             "signal_tz": "Europe/Madrid",
-            "signal_last_ts": "2024-02-13 23:45:00",
-            "signal_last_value": 0,
+            "signal_last_ts": "2024-02-13 23:45:00", # previous from the lake
+            "signal_last_value": 0, # previous from the lake
             "signal_unit": "kWh"
-            "signal_external_id": blabla,
-            "signal_device_external_description"; blabla,
-            "signal_device_external_id": blabla,
+            "signal_external_id": some_uuid,
+            "signal_device_external_description"; some_external_description,
+            "signal_device_external_id": some_external_uuid,
             "ts": "2021-01-01 00:00:00", # new from the response
             "signal_value": 77 # new from the response
         }
@@ -259,6 +259,8 @@ def __extend_response(
     df_response["signal_external_id"] = signal["signal_external_id"]
     df_response["signal_device_external_description"] = signal["signal_device_external_description"]  # fmt: skip
     df_response["signal_device_external_id"] = signal["signal_device_external_id"]
+
+    # we set the current ts and value as the last ts and value
     df_response["signal_last_ts"] = signal["max_last_ts"]
     df_response["signal_last_value"] = signal["max_last_ts_value"]
 
@@ -281,7 +283,7 @@ def __transform_group_response(
             "group_name": "b",
             "signals": [
                 {
-                    "signal_id": 12,
+                    "signal_id": 11,
                     "signal_code": "some_code",
                     "signal_description": "some_description",
                     "signal_frequency": "15 minutes",
@@ -291,9 +293,12 @@ def __transform_group_response(
                     "signal_last_ts": "2024-02-13 23:45:00",
                     "signal_last_value": 0,
                     "signal_unit": "kWh",
+                    "signal_external_id": "some_external_id_1",
+                    "signal_device_external_description": "some_device_external_description_1",
+                    "signal_device_external_id": "some_device_external_id_1",
                 },
                 {
-                    "signal_id": 11,
+                    "signal_id": 12,
                     "signal_code": "some_other_code",
                     "signal_description": "some_other_description",
                     "signal_frequency": "2222 minutes", # not the same frequency
@@ -303,27 +308,35 @@ def __transform_group_response(
                     "signal_last_ts": "2024-02-13 21:45:00",
                     "signal_last_value": 10,
                     "signal_unit": "kWh",
+                    "signal_external_id": "some_external_id_2",
+                    "signal_device_external_description": "some_device_external_description_2",
+                    "signal_device_external_id": "some_device_external_id_2",
                 },
             ],
         },
     ]
 
     >>> __transform_group_response(group_response_json, "15 minutes")
-    [{
-        "group_id": 1,
-        "group_code": "a",
-        "group_name": "b",
-        "signal_id": 12,
-        "signal_code": "some_code",
-        "signal_description": "some_description",
-        "signal_frequency": "15 minutes",
-        "signal_type": "absolute",
-        "signal_is_virtual": False,
-        "signal_tz": "Europe/Madrid",
-        "signal_last_ts": "2024-02-13 23:45:00",
-        "signal_last_value": 0,
-        "signal_unit": "kWh",
-    }]
+    [
+        {
+            "group_id": 1,
+            "group_code": "a",
+            "group_name": "b",
+            "signal_id": 11,
+            "signal_code": "some_code",
+            "signal_description": "some_description",
+            "signal_frequency": "15 minutes",
+            "signal_type": "absolute",
+            "signal_is_virtual": False,
+            "signal_tz": "Europe/Madrid",
+            "signal_last_ts": "2024-02-13 23:45:00",
+            "signal_last_value": 0,
+            "signal_unit": "kWh",
+            "signal_external_id": "some_external_id_1",
+            "signal_device_external_description": "some_device_external_description_1",
+            "signal_device_external_id": "some_device_external_id_1",
+        }
+    ]
     """
 
     return [
