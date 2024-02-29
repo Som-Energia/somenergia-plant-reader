@@ -190,7 +190,7 @@ def __resolve_outdated_signals(
         right_on="signal_id",
         how="outer",
         indicator=True,
-        # validate="one_to_one", # raises when they dont match
+        validate="one_to_one",  # ensures that signal_id is unique in both dataframes
         suffixes=("__dset", "__som"),
     )
 
