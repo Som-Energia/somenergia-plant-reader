@@ -46,6 +46,11 @@ def get_historic_readings_meters(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
+    look_back_days: int = typer.Option(
+        7,
+        "--look-back-days",
+        help="Number of days to look back from last timestamp when table is empty",
+    ),
 ):
     """Get historic readings from the DSET API and compare with what we have"""
 
@@ -55,6 +60,9 @@ def get_historic_readings_meters(
     }
 
     logger.info("Fetching groups from the DSET API")
+
+    # we fetch the groups
+    queried_at_ts = datetime.datetime.now(tz=pytz.utc)
 
     response = httpx.get(
         base_url + "/api/groups",
@@ -93,13 +101,37 @@ def get_historic_readings_meters(
         "signal_external_id": "string",
         "signal_device_external_description": "string",
         "signal_device_external_id": "string",
+        "queried_at": "datetime64[ns, UTC]",
     }
 
-    df_last_signals = pd.DataFrame(filtered_signals).astype(_signals_dtype)
-    db_engine = sa.create_engine(dbapi)
+    _signals_sql_types = {
+        "group_id": sa.Integer,
+        "group_code": sa.String,
+        "group_name": sa.String,
+        "signal_id": sa.Integer,
+        "signal_code": sa.String,
+        "signal_description": sa.String,
+        "signal_frequency": sa.String,
+        "signal_type": sa.String,
+        "signal_is_virtual": sa.Boolean,
+        "signal_tz": sa.String,
+        "signal_last_ts": sa.DateTime(timezone=True),
+        "signal_last_value": sa.Float,
+        "signal_unit": sa.String,
+        "signal_external_id": sa.String,
+        "signal_device_external_description": sa.String,
+        "signal_device_external_id": sa.String,
+        "queried_at": sa.DateTime(timezone=True),
+    }
+
+    df_last_signals = pd.DataFrame(filtered_signals)
+    df_last_signals["queried_at"] = queried_at_ts + response.elapsed
+    df_last_signals = df_last_signals.astype(_signals_dtype)
+
+    engine = sa.create_engine(dbapi)
 
     # assess if table exists
-    insp = sa.inspect(db_engine)
+    insp = sa.inspect(engine)
     table_exists = insp.has_table(
         TABLE_NAME__DSET_METERS_READINGS,
         schema=schema,
@@ -107,8 +139,7 @@ def get_historic_readings_meters(
 
     if not table_exists:
         # we update fields to match the lake table
-        df_last_signals["ts"] = df_last_signals["signal_last_ts"]
-        df_last_signals["signal_value"] = df_last_signals["signal_last_value"]
+        df_last_signals = __extend_df_first_insert(df_last_signals, queried_at_ts)
 
         logger.info(
             f"Table {schema}.{TABLE_NAME__DSET_METERS_READINGS}"
@@ -116,39 +147,54 @@ def get_historic_readings_meters(
         )
 
         df_last_signals.to_sql(
-            con=db_engine,
+            con=engine,
             name=TABLE_NAME__DSET_METERS_READINGS,
             schema=schema,
             if_exists="fail",
             index=False,
+            dtype=_signals_sql_types,
         )
     else:
         logger.info("Table exists, comparing last readings with stored ones")
 
-        df_lake_meters = _get_lake_latest_signals(schema, db_engine)
+        df_lake_meters = __get_lake_latest_signals(schema, engine)
 
-        df_in_lake_outdated = _resolve_outdated_signals(
+        df_in_lake_outdated = __resolve_outdated_signals(
             df_api=df_last_signals,
             df_lake=df_lake_meters,
         )
 
-        logger.info(f"Found {len(df_in_lake_outdated)} signals that needs updating")
+        logger.info(f"Found {len(df_in_lake_outdated)} signals that need updating")
 
-        for ix, signal in df_in_lake_outdated.iterrows():
-            _append_new_signal_in_db(
+        for _, signal in df_in_lake_outdated.iterrows():
+            __append_new_signal_in_db(
                 signal,
                 api_key=apikey,
                 base_url=base_url,
                 apply_k_value=apply_k_value,
                 sig_detail=sig_detail,
-                engine=db_engine,
+                engine=engine,
                 schema=schema,
                 query_timeout=query_timeout,
                 dry_run=dry_run,
+                look_back_days=look_back_days,
             )
 
 
-def _resolve_outdated_signals(
+def __extend_df_first_insert(
+    df_last_signals: pd.DataFrame,
+    queried_at_ts: datetime.datetime,
+):
+    """Extends a dataframe to match the lake table in the first insert."""
+
+    df_last_signals["ts"] = df_last_signals["signal_last_ts"]
+    df_last_signals["signal_value"] = df_last_signals["signal_last_value"]
+    df_last_signals["queried_at"] = queried_at_ts
+
+    return df_last_signals
+
+
+def __resolve_outdated_signals(
     df_api: pd.DataFrame,
     df_lake: pd.DataFrame,
 ) -> pd.DataFrame:
@@ -163,24 +209,25 @@ def _resolve_outdated_signals(
         right_on="signal_id",
         how="outer",
         indicator=True,
-        # validate="one_to_one", # raises when they dont match
+        validate="one_to_one",  # ensures that signal_id is unique in both dataframes
         suffixes=("__dset", "__som"),
     )
 
-    df_in_lake_outdated = df_recent.query(
-        "_merge == 'both'"
-        " and signal_last_ts > max_last_ts"
-        " or _merge == 'left_only'"
-    ).replace({np.nan: None})
+    _df_outdated_in_lake = df_recent.query(
+        "_merge == 'both' and signal_last_ts > max_last_ts"
+    )
+    _df_new_from_api = df_recent.query("_merge == 'left_only'")
+    df_in_lake_outdated = pd.concat([_df_outdated_in_lake, _df_new_from_api], axis=0)
+    df_in_lake_outdated.replace({np.nan: None}, inplace=True)
 
     return df_in_lake_outdated
 
 
-def _extend_response(
+def __extend_response(
     df_response: pd.DataFrame,
     signal: dict,
 ) -> pd.DataFrame:
-    """Extend the response from /api/data/{signal_id} to match the lake
+    """Extend the response from /api/data/{signal_id} to match the schema in the lake table
 
     The response from the DSET API is a list of dictionaries with the
     following fields:
@@ -206,12 +253,12 @@ def _extend_response(
             "signal_type": "absolute",
             "signal_is_virtual": False,
             "signal_tz": "Europe/Madrid",
-            "signal_last_ts": "2024-02-13 23:45:00",
-            "signal_last_value": 0,
+            "signal_last_ts": "2024-02-13 23:45:00", # previous from the lake
+            "signal_last_value": 0, # previous from the lake
             "signal_unit": "kWh"
-            "signal_external_id": blabla,
-            "signal_device_external_description"; blabla,
-            "signal_device_external_id": blabla,
+            "signal_external_id": some_uuid,
+            "signal_device_external_description"; some_external_description,
+            "signal_device_external_id": some_external_uuid,
             "ts": "2021-01-01 00:00:00", # new from the response
             "signal_value": 77 # new from the response
         }
@@ -230,8 +277,11 @@ def _extend_response(
     df_response["signal_tz"] = signal["signal_tz"]
     df_response["signal_unit"] = signal["signal_unit"]
     df_response["signal_external_id"] = signal["signal_external_id"]
-    df_response["signal_device_external_description"] = signal["signal_device_external_description"]  # noqa: E501
+    df_response["signal_device_external_description"] = signal["signal_device_external_description"]  # fmt: skip
     df_response["signal_device_external_id"] = signal["signal_device_external_id"]
+    df_response["queried_at"] = signal["queried_at"]
+
+    # we set the current ts and value as the last ts and value
     df_response["signal_last_ts"] = signal["max_last_ts"]
     df_response["signal_last_value"] = signal["max_last_ts_value"]
 
@@ -254,7 +304,7 @@ def __transform_group_response(
             "group_name": "b",
             "signals": [
                 {
-                    "signal_id": 12,
+                    "signal_id": 11,
                     "signal_code": "some_code",
                     "signal_description": "some_description",
                     "signal_frequency": "15 minutes",
@@ -264,9 +314,12 @@ def __transform_group_response(
                     "signal_last_ts": "2024-02-13 23:45:00",
                     "signal_last_value": 0,
                     "signal_unit": "kWh",
+                    "signal_external_id": "some_external_id_1",
+                    "signal_device_external_description": "some_device_external_description_1",
+                    "signal_device_external_id": "some_device_external_id_1",
                 },
                 {
-                    "signal_id": 11,
+                    "signal_id": 12,
                     "signal_code": "some_other_code",
                     "signal_description": "some_other_description",
                     "signal_frequency": "2222 minutes", # not the same frequency
@@ -276,27 +329,35 @@ def __transform_group_response(
                     "signal_last_ts": "2024-02-13 21:45:00",
                     "signal_last_value": 10,
                     "signal_unit": "kWh",
+                    "signal_external_id": "some_external_id_2",
+                    "signal_device_external_description": "some_device_external_description_2",
+                    "signal_device_external_id": "some_device_external_id_2",
                 },
             ],
         },
     ]
 
     >>> __transform_group_response(group_response_json, "15 minutes")
-    [{
-        "group_id": 1,
-        "group_code": "a",
-        "group_name": "b",
-        "signal_id": 12,
-        "signal_code": "some_code",
-        "signal_description": "some_description",
-        "signal_frequency": "15 minutes",
-        "signal_type": "absolute",
-        "signal_is_virtual": False,
-        "signal_tz": "Europe/Madrid",
-        "signal_last_ts": "2024-02-13 23:45:00",
-        "signal_last_value": 0,
-        "signal_unit": "kWh",
-    }]
+    [
+        {
+            "group_id": 1,
+            "group_code": "a",
+            "group_name": "b",
+            "signal_id": 11,
+            "signal_code": "some_code",
+            "signal_description": "some_description",
+            "signal_frequency": "15 minutes",
+            "signal_type": "absolute",
+            "signal_is_virtual": False,
+            "signal_tz": "Europe/Madrid",
+            "signal_last_ts": "2024-02-13 23:45:00",
+            "signal_last_value": 0,
+            "signal_unit": "kWh",
+            "signal_external_id": "some_external_id_1",
+            "signal_device_external_description": "some_device_external_description_1",
+            "signal_device_external_id": "some_device_external_id_1",
+        }
+    ]
     """
 
     return [
@@ -312,17 +373,19 @@ def __transform_group_response(
     ]
 
 
-def _get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.DataFrame:
+def __get_lake_latest_signals(
+    schema: str,
+    engine: sa.engine.Engine,
+) -> pd.DataFrame:
     df = pd.read_sql(
-        f"""
-            select distinct on (signal_id)
+        f"""select distinct on (signal_id)
                 signal_id,
                 signal_value as max_last_ts_value,
                 ts as max_last_ts
             from plants.{schema}.{TABLE_NAME__DSET_METERS_READINGS}
             order by signal_id, ts desc
             """,
-        db_engine,
+        engine,
         parse_dates=["max_last_ts"],
     ).astype(
         {
@@ -335,7 +398,7 @@ def _get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.Dat
     return df
 
 
-def _query_data_latest(
+def __query_data_latest(
     signal_id: str,
     api_key: str,
     query_params: dict,
@@ -357,13 +420,14 @@ def _query_data_latest(
     return df_response
 
 
-def _append_new_signal_in_db(
+def __append_new_signal_in_db(
     signal: T.Dict,
     api_key: str,
     base_url: str,
     engine: sa.engine.Engine,
     schema: str,
     query_timeout: float,
+    look_back_days: int,
     dry_run: bool = True,
     apply_k_value: bool = True,
     sig_detail: bool = True,
@@ -372,14 +436,17 @@ def _append_new_signal_in_db(
     signal_id = signal["signal_id"]
 
     if signal["_merge"] == "both":
+        # we update from the last stored reading
         date_from = signal["max_last_ts"]
+        date_to = signal["signal_last_ts"]
+        logger.info(f"Signal {signal_id} is present in the lake, but outdated.")
     else:
+        # it's a new signal incoming from the api, we fetch look_back_days of data
+        date_to = signal["signal_last_ts"] - datetime.timedelta(days=look_back_days)
         date_from = signal["signal_last_ts"]
-
-    tz = pytz.timezone(signal["signal_tz"])
-    date_to = datetime.datetime.now(tz=tz)
-
-    logger.info(f"Updating signal {signal_id} from {date_from} to {date_to}")
+        logger.info(
+            f"New signal {signal_id} detected, not present in the lake. Fetching {look_back_days} days of data."
+        )
 
     params = {
         "from": date_from.isoformat(),
@@ -388,9 +455,9 @@ def _append_new_signal_in_db(
         "sig_detail": sig_detail,
     }
 
-    logger.info(f"Querying data for signal with params: {params}")
+    logger.debug(f"Querying data for signal {signal_id} with params: {params}")
 
-    df_response = _query_data_latest(
+    df_response = __query_data_latest(
         signal_id=signal_id,
         api_key=api_key,
         query_params=params,
@@ -398,21 +465,30 @@ def _append_new_signal_in_db(
         base_url=base_url,
     )
 
-    df_new_signals = _extend_response(df_response, signal)
+    if len(df_response) == 0:
+        logger.info(f"No new readings for signal {signal_id}")
+        return
+
+    df_new_signals = __extend_response(df_response, signal)
+
+    # add queried_at timestamp
+    # df_new_signals["queried_at"] = date_to
 
     logger.info(f"{len(df_new_signals)} new readings fetched")
 
-    if not dry_run:
-        df_new_signals.to_sql(
-            con=engine,
-            name=TABLE_NAME__DSET_METERS_READINGS,
-            schema=schema,
-            if_exists="append",
-            index=False,
-        )
-
-    else:
+    if dry_run:
         logger.info("Dry run, not committing to the database")
+        return
+
+    logger.info("Committing results to the database")
+
+    df_new_signals.to_sql(
+        con=engine,
+        name=TABLE_NAME__DSET_METERS_READINGS,
+        schema=schema,
+        if_exists="append",
+        index=False,
+    )
 
 
 if __name__ == "__main__":
