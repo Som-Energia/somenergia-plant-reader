@@ -194,11 +194,12 @@ def __resolve_outdated_signals(
         suffixes=("__dset", "__som"),
     )
 
-    df_in_lake_outdated = df_recent.query(
-        "_merge == 'both'"
-        " and signal_last_ts > max_last_ts"
-        " or _merge == 'left_only'"
-    ).replace({np.nan: None})
+    _df_outdated_in_lake = df_recent.query(
+        "_merge == 'both' and signal_last_ts > max_last_ts"
+    )
+    _df_new_from_api = df_recent.query("_merge == 'left_only'")
+    df_in_lake_outdated = pd.concat([_df_outdated_in_lake, _df_new_from_api], axis=0)
+    df_in_lake_outdated.replace({np.nan: None}, inplace=True)
 
     return df_in_lake_outdated
 
