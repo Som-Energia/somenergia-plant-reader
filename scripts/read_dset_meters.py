@@ -46,6 +46,11 @@ def get_historic_readings_meters(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
+    look_back_days: int = typer.Option(
+        7,
+        "--look-back-days",
+        help="Number of days to look back from last timestamp when table is empty",
+    ),
 ):
     """Get historic readings from the DSET API and compare with what we have"""
 
@@ -172,6 +177,7 @@ def get_historic_readings_meters(
                 schema=schema,
                 query_timeout=query_timeout,
                 dry_run=dry_run,
+                look_back_days=look_back_days,
             )
 
 
@@ -421,10 +427,10 @@ def __append_new_signal_in_db(
     engine: sa.engine.Engine,
     schema: str,
     query_timeout: float,
+    look_back_days: int,
     dry_run: bool = True,
     apply_k_value: bool = True,
     sig_detail: bool = True,
-    look_back_days: int = 3,
 ):
     # we craft a request to fetch data from
     signal_id = signal["signal_id"]

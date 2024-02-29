@@ -90,6 +90,7 @@ with DAG(
             " --schema lake"
             " --sig-detail"
             " --apply-k-value"
+            " --look-back-days 7"
         ),
         docker_url=sampled_moll,
         mounts=[mount_nfs],
