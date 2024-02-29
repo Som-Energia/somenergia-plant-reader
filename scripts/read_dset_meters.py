@@ -114,10 +114,10 @@ def get_historic_readings_meters(
     }
 
     df_last_signals = pd.DataFrame(filtered_signals).astype(_signals_dtype)
-    db_engine = sa.create_engine(dbapi)
+    engine = sa.create_engine(dbapi)
 
     # assess if table exists
-    insp = sa.inspect(db_engine)
+    insp = sa.inspect(engine)
     table_exists = insp.has_table(
         TABLE_NAME__DSET_METERS_READINGS,
         schema=schema,
@@ -133,7 +133,7 @@ def get_historic_readings_meters(
         )
 
         df_last_signals.to_sql(
-            con=db_engine,
+            con=engine,
             name=TABLE_NAME__DSET_METERS_READINGS,
             schema=schema,
             if_exists="fail",
@@ -143,14 +143,14 @@ def get_historic_readings_meters(
     else:
         logger.info("Table exists, comparing last readings with stored ones")
 
-        df_lake_meters = __get_lake_latest_signals(schema, db_engine)
+        df_lake_meters = __get_lake_latest_signals(schema, engine)
 
         df_in_lake_outdated = __resolve_outdated_signals(
             df_api=df_last_signals,
             df_lake=df_lake_meters,
         )
 
-        logger.info(f"Found {len(df_in_lake_outdated)} signals that needs updating")
+        logger.info(f"Found {len(df_in_lake_outdated)} signals that need updating")
 
         for _, signal in df_in_lake_outdated.iterrows():
             __append_new_signal_in_db(
@@ -159,7 +159,7 @@ def get_historic_readings_meters(
                 base_url=base_url,
                 apply_k_value=apply_k_value,
                 sig_detail=sig_detail,
-                engine=db_engine,
+                engine=engine,
                 schema=schema,
                 query_timeout=query_timeout,
                 dry_run=dry_run,
@@ -339,17 +339,19 @@ def __transform_group_response(
     ]
 
 
-def __get_lake_latest_signals(schema: str, db_engine: sa.engine.Engine) -> pd.DataFrame:
+def __get_lake_latest_signals(
+    schema: str,
+    engine: sa.engine.Engine,
+) -> pd.DataFrame:
     df = pd.read_sql(
-        f"""
-            select distinct on (signal_id)
+        f"""select distinct on (signal_id)
                 signal_id,
                 signal_value as max_last_ts_value,
                 ts as max_last_ts
             from plants.{schema}.{TABLE_NAME__DSET_METERS_READINGS}
             order by signal_id, ts desc
             """,
-        db_engine,
+        engine,
         parse_dates=["max_last_ts"],
     ).astype(
         {
