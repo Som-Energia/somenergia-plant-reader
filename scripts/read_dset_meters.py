@@ -5,7 +5,6 @@ import typing as T
 import httpx
 import numpy as np
 import pandas as pd
-import pytz
 import sqlalchemy as sa
 import typer
 from httpx import Timeout
@@ -395,19 +394,23 @@ def __append_new_signal_in_db(
     dry_run: bool = True,
     apply_k_value: bool = True,
     sig_detail: bool = True,
+    look_back_days: int = 3,
 ):
     # we craft a request to fetch data from
     signal_id = signal["signal_id"]
 
     if signal["_merge"] == "both":
+        # we update from the last stored reading
         date_from = signal["max_last_ts"]
+        date_to = signal["signal_last_ts"]
+        logger.info(f"Signal {signal_id} is present in the lake, but outdated.")
     else:
+        # it's a new signal incoming from the api, we fetch
+        date_to = signal["signal_last_ts"] - datetime.timedelta(days=look_back_days)
         date_from = signal["signal_last_ts"]
-
-    tz = pytz.timezone(signal["signal_tz"])
-    date_to = datetime.datetime.now(tz=tz)
-
-    logger.info(f"Updating signal {signal_id} from {date_from} to {date_to}")
+        logger.info(
+            f"New signal {signal_id} detected, not present in the lake. Fetching {look_back_days} days of data."
+        )
 
     params = {
         "from": date_from.isoformat(),
@@ -416,7 +419,7 @@ def __append_new_signal_in_db(
         "sig_detail": sig_detail,
     }
 
-    logger.info(f"Querying data for signal with params: {params}")
+    logger.debug(f"Querying data for signal {signal_id} with params: {params}")
 
     df_response = __query_data_latest(
         signal_id=signal_id,
@@ -426,21 +429,30 @@ def __append_new_signal_in_db(
         base_url=base_url,
     )
 
+    if len(df_response) == 0:
+        logger.info(f"No new readings for signal {signal_id}")
+        return
+
     df_new_signals = __extend_response(df_response, signal)
+
+    # add queried_at timestamp
+    # df_new_signals["queried_at"] = date_to
 
     logger.info(f"{len(df_new_signals)} new readings fetched")
 
-    if not dry_run:
-        df_new_signals.to_sql(
-            con=engine,
-            name=TABLE_NAME__DSET_METERS_READINGS,
-            schema=schema,
-            if_exists="append",
-            index=False,
-        )
-
-    else:
+    if dry_run:
         logger.info("Dry run, not committing to the database")
+        return
+
+    logger.info("Committing results to the database")
+
+    df_new_signals.to_sql(
+        con=engine,
+        name=TABLE_NAME__DSET_METERS_READINGS,
+        schema=schema,
+        if_exists="append",
+        index=False,
+    )
 
 
 if __name__ == "__main__":
