@@ -5,6 +5,7 @@ import typing as T
 import httpx
 import numpy as np
 import pandas as pd
+import pytz
 import sqlalchemy as sa
 import typer
 from httpx import Timeout
@@ -55,6 +56,9 @@ def get_historic_readings_meters(
 
     logger.info("Fetching groups from the DSET API")
 
+    # we fetch the groups
+    queried_at_ts = datetime.datetime.now(tz=pytz.utc)
+
     response = httpx.get(
         base_url + "/api/groups",
         params=queryparams,
@@ -92,6 +96,7 @@ def get_historic_readings_meters(
         "signal_external_id": "string",
         "signal_device_external_description": "string",
         "signal_device_external_id": "string",
+        "queried_at": "datetime64[ns, UTC]",
     }
 
     _signals_sql_types = {
@@ -111,9 +116,13 @@ def get_historic_readings_meters(
         "signal_external_id": sa.String,
         "signal_device_external_description": sa.String,
         "signal_device_external_id": sa.String,
+        "queried_at": sa.DateTime(timezone=True),
     }
 
-    df_last_signals = pd.DataFrame(filtered_signals).astype(_signals_dtype)
+    df_last_signals = pd.DataFrame(filtered_signals)
+    df_last_signals["queried_at"] = queried_at_ts + response.elapsed
+    df_last_signals = df_last_signals.astype(_signals_dtype)
+
     engine = sa.create_engine(dbapi)
 
     # assess if table exists
@@ -125,7 +134,7 @@ def get_historic_readings_meters(
 
     if not table_exists:
         # we update fields to match the lake table
-        df_last_signals = __extend_df_first_insert(df_last_signals)
+        df_last_signals = __extend_df_first_insert(df_last_signals, queried_at_ts)
 
         logger.info(
             f"Table {schema}.{TABLE_NAME__DSET_METERS_READINGS}"
@@ -166,11 +175,15 @@ def get_historic_readings_meters(
             )
 
 
-def __extend_df_first_insert(df_last_signals):
+def __extend_df_first_insert(
+    df_last_signals: pd.DataFrame,
+    queried_at_ts: datetime.datetime,
+):
     """Extends a dataframe to match the lake table in the first insert."""
 
     df_last_signals["ts"] = df_last_signals["signal_last_ts"]
     df_last_signals["signal_value"] = df_last_signals["signal_last_value"]
+    df_last_signals["queried_at"] = queried_at_ts
 
     return df_last_signals
 
@@ -260,6 +273,7 @@ def __extend_response(
     df_response["signal_external_id"] = signal["signal_external_id"]
     df_response["signal_device_external_description"] = signal["signal_device_external_description"]  # fmt: skip
     df_response["signal_device_external_id"] = signal["signal_device_external_id"]
+    df_response["queried_at"] = signal["queried_at"]
 
     # we set the current ts and value as the last ts and value
     df_response["signal_last_ts"] = signal["max_last_ts"]
@@ -421,7 +435,7 @@ def __append_new_signal_in_db(
         date_to = signal["signal_last_ts"]
         logger.info(f"Signal {signal_id} is present in the lake, but outdated.")
     else:
-        # it's a new signal incoming from the api, we fetch
+        # it's a new signal incoming from the api, we fetch look_back_days of data
         date_to = signal["signal_last_ts"] - datetime.timedelta(days=look_back_days)
         date_from = signal["signal_last_ts"]
         logger.info(
