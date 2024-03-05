@@ -268,6 +268,7 @@ def __extend_response(
 
     df_response["group_id"] = signal["group_id"]
     df_response["group_code"] = signal["group_code"]
+    df_response["group_name"] = signal["group_name"]
     df_response["signal_id"] = signal["signal_id"]
     df_response["signal_code"] = signal["signal_code"]
     df_response["signal_description"] = signal["signal_description"]
