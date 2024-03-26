@@ -217,6 +217,9 @@ def __resolve_outdated_signals(
         "_merge == 'both' and signal_last_ts > max_last_ts"
     )
     _df_new_from_api = df_recent.query("_merge == 'left_only'")
+    _df_new_from_api["max_last_ts"] = _df_new_from_api["signal_last_ts"]
+    _df_new_from_api["max_last_ts_value"] = _df_new_from_api["signal_last_value"]
+
     df_in_lake_outdated = pd.concat([_df_outdated_in_lake, _df_new_from_api], axis=0)
     df_in_lake_outdated.replace({np.nan: None}, inplace=True)
 
@@ -443,8 +446,8 @@ def __append_new_signal_in_db(
         logger.info(f"Signal {signal_id} is present in the lake, but outdated.")
     else:
         # it's a new signal incoming from the api, we fetch look_back_days of data
-        date_to = signal["signal_last_ts"] - datetime.timedelta(days=look_back_days)
-        date_from = signal["signal_last_ts"]
+        date_from = signal["max_last_ts"] - datetime.timedelta(days=look_back_days)
+        date_to = signal["max_last_ts"]
         logger.info(
             f"New signal {signal_id} detected, not present in the lake. Fetching {look_back_days} days of data."
         )
