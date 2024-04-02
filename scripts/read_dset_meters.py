@@ -154,6 +154,8 @@ def get_historic_readings_meters(
             index=False,
             dtype=_signals_sql_types,
         )
+
+        logger.info(f"{len(df_last_signals)} signals inserted.")
     else:
         logger.info("Table exists, comparing last readings with stored ones")
 
