@@ -96,7 +96,7 @@ with DAG(
     dag_id="dset_historic_reader_dag_v3",
     start_date=datetime(2023, 8, 1),
     schedule="4-59/5 * * * *",
-    catchup=False,
+    catchup=True,
     tags=["dades", "jardiner", "ingesta", "dset"],
     default_args=args_with_retries,
     max_active_runs=5,
