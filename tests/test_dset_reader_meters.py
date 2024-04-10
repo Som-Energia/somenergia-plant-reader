@@ -45,7 +45,7 @@ def mock__query_data_latest(
 
     return pd.DataFrame(mock_response)
 
-@pytest.mark.skip(reason="This test is incomplete, mock_response is not group")
+
 def test_get(mocker, cli_runner):
     import json
 
@@ -90,7 +90,8 @@ def test_get(mocker, cli_runner):
         "postgresql://jardiner:password@mock-dbdades.somenergia.lan:5432/plants",
     ]
 
-    result = cli_runner.invoke(scripts.read_dset_meters.app, params, catch_exceptions=False)
+    result = cli_runner.invoke(scripts.read_dset_meters.app, params)
+
     assert result.exit_code == 0
 
 

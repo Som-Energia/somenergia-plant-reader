@@ -46,10 +46,10 @@ def get_historic_readings_meters(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
-    start_date: datetime.datetime = typer.Option(
-        datetime.datetime(year=2023,month=8,day=1,hour=0,minute=0,second=0),
-        "--start-date",
-        help="Date as of which meter signals are downloaded"
+    look_back_days: int = typer.Option(
+        7,
+        "--look-back-days",
+        help="Number of days to look back from last timestamp when table is empty",
     ),
 ):
     """Get historic readings from the DSET API and compare with what we have"""
@@ -179,7 +179,7 @@ def get_historic_readings_meters(
                 schema=schema,
                 query_timeout=query_timeout,
                 dry_run=dry_run,
-                start_date=start_date,
+                look_back_days=look_back_days,
             )
 
 
@@ -433,7 +433,7 @@ def __append_new_signal_in_db(
     engine: sa.engine.Engine,
     schema: str,
     query_timeout: float,
-    start_date: datetime.datetime,
+    look_back_days: int,
     dry_run: bool = True,
     apply_k_value: bool = True,
     sig_detail: bool = True,
@@ -447,11 +447,11 @@ def __append_new_signal_in_db(
         date_to = signal["signal_last_ts"]
         logger.info(f"Signal {signal_id} is present in the lake, but outdated.")
     else:
-        # it's a new signal incoming from the api, we fetch all data from specified start_date
-        date_from = start_date
-        date_to = signal["signal_last_ts"]
+        # it's a new signal incoming from the api, we fetch look_back_days of data
+        date_from = signal["max_last_ts"] - datetime.timedelta(days=look_back_days)
+        date_to = signal["max_last_ts"]
         logger.info(
-            f"New signal {signal_id} detected, not present in the lake. Fetching all data from {start_date}."
+            f"New signal {signal_id} detected, not present in the lake. Fetching {look_back_days} days of data."
         )
 
     params = {
