@@ -1,9 +1,10 @@
 import random
-from airflow import DAG
-from airflow.providers.docker.operators.docker import DockerOperator
-from docker.types import Mount, DriverConfig
 from datetime import datetime, timedelta
+
+from airflow import DAG
 from airflow.models import Variable
+from airflow.providers.docker.operators.docker import DockerOperator
+from docker.types import DriverConfig, Mount
 
 my_email = Variable.get("fail_email")
 addr = Variable.get("repo_server_url")
@@ -78,8 +79,6 @@ with DAG(
             " --api-key {{ var.value.dset_apikey }}"
             " --schema lake"
         ),
-
-
         docker_url=sampled_moll,
         mounts=[mount_nfs],
         mount_tmp_dir=False,
@@ -98,7 +97,7 @@ with DAG(
     start_date=datetime(2023, 8, 1),
     schedule="4-59/5 * * * *",
     catchup=False,
-    tags=["Dades", "jardiner", "Ingesta", "dset"],
+    tags=["dades", "jardiner", "ingesta", "dset"],
     default_args=args_with_retries,
     max_active_runs=5,
 ) as dag:
@@ -159,7 +158,7 @@ with DAG(
     tags=["dades", "jardiner", "ingesta", "dset"],
     default_args=args_with_retries,
     max_active_runs=5,
-    doc_md=dset_daily_dag_doc
+    doc_md=dset_daily_dag_doc,
 ) as dag:
     repo_name = "somenergia-plant-reader"
 
