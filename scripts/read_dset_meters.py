@@ -95,7 +95,7 @@ def get_historic_readings_meters(
         "signal_type": "string",
         "signal_is_virtual": "boolean",
         "signal_tz": "string",
-        "signal_last_ts": "datetime64[ns, Europe/Madrid]",
+        "signal_last_ts": "datetime64[ns, UTC]",
         "signal_last_value": "float64",
         "signal_unit": "string",
         "signal_external_id": "string",
@@ -126,6 +126,13 @@ def get_historic_readings_meters(
 
     df_last_signals = pd.DataFrame(filtered_signals)
     df_last_signals["queried_at"] = queried_at_ts + response.elapsed
+
+    found_timezones = df_last_signals['signal_tz'].unique()
+
+    if len(found_timezones) != 1 or found_timezones[0] != 'UTC':
+        logger.error("Meter signals are mixing timezones=%s and we assume UTC. Aborting.", found_timezones)
+        raise typer.Exit(code=1)
+
     df_last_signals = df_last_signals.astype(_signals_dtype)
 
     engine = sa.create_engine(dbapi)
@@ -257,7 +264,7 @@ def __extend_response(
             "signal_frequency": "15 minutes",
             "signal_type": "absolute",
             "signal_is_virtual": False,
-            "signal_tz": "Europe/Madrid",
+            "signal_tz": "UTC",
             "signal_last_ts": "2024-02-13 23:45:00", # previous from the lake
             "signal_last_value": 0, # previous from the lake
             "signal_unit": "kWh"
@@ -316,7 +323,7 @@ def __transform_group_response(
                     "signal_frequency": "15 minutes",
                     "signal_type": "absolute",
                     "signal_is_virtual": False,
-                    "signal_tz": "Europe/Madrid",
+                    "signal_tz": "UTC",
                     "signal_last_ts": "2024-02-13 23:45:00",
                     "signal_last_value": 0,
                     "signal_unit": "kWh",
@@ -331,7 +338,7 @@ def __transform_group_response(
                     "signal_frequency": "2222 minutes", # not the same frequency
                     "signal_type": "absolute",
                     "signal_is_virtual": False,
-                    "signal_tz": "Europe/Madrid",
+                    "signal_tz": "UTC",
                     "signal_last_ts": "2024-02-13 21:45:00",
                     "signal_last_value": 10,
                     "signal_unit": "kWh",
@@ -355,7 +362,7 @@ def __transform_group_response(
             "signal_frequency": "15 minutes",
             "signal_type": "absolute",
             "signal_is_virtual": False,
-            "signal_tz": "Europe/Madrid",
+            "signal_tz": "UTC",
             "signal_last_ts": "2024-02-13 23:45:00",
             "signal_last_value": 0,
             "signal_unit": "kWh",
@@ -383,6 +390,7 @@ def __get_lake_latest_signals(
     schema: str,
     engine: sa.engine.Engine,
 ) -> pd.DataFrame:
+
     df = pd.read_sql(
         f"""select distinct on (signal_id)
                 signal_id,
@@ -392,12 +400,12 @@ def __get_lake_latest_signals(
             order by signal_id, ts desc
             """,
         engine,
-        parse_dates=["max_last_ts"],
+        parse_dates={"max_last_ts" : {'utc': True}},
     ).astype(
         {
             "signal_id": "int64",
             "max_last_ts_value": "float64",
-            "max_last_ts": "datetime64[ns, Europe/Madrid]",
+            "max_last_ts": "datetime64[ns, UTC]",
         }
     )
 
