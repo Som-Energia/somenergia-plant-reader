@@ -95,7 +95,7 @@ def get_historic_readings_meters(
         "signal_type": "string",
         "signal_is_virtual": "boolean",
         "signal_tz": "string",
-        "signal_last_ts": "datetime64[ns, UTC]",
+        "signal_last_ts": "datetime64[ns]",
         "signal_last_value": "float64",
         "signal_unit": "string",
         "signal_external_id": "string",
@@ -115,7 +115,7 @@ def get_historic_readings_meters(
         "signal_type": sa.String,
         "signal_is_virtual": sa.Boolean,
         "signal_tz": sa.String,
-        "signal_last_ts": sa.DateTime(timezone=True),
+        "signal_last_ts": sa.DateTime(timezone=False),
         "signal_last_value": sa.Float,
         "signal_unit": sa.String,
         "signal_external_id": sa.String,
@@ -127,10 +127,13 @@ def get_historic_readings_meters(
     df_last_signals = pd.DataFrame(filtered_signals)
     df_last_signals["queried_at"] = queried_at_ts + response.elapsed
 
-    found_timezones = df_last_signals['signal_tz'].unique()
+    found_timezones = df_last_signals["signal_tz"].unique()
 
-    if len(found_timezones) != 1 or found_timezones[0] != 'UTC':
-        logger.error("Meter signals are mixing timezones=%s and we assume UTC. Aborting.", found_timezones)
+    if len(found_timezones) != 1 or found_timezones[0] != "UTC":
+        logger.error(
+            "Meter signals are mixing timezones=%s and we assume UTC. Aborting.",
+            found_timezones,
+        )
         raise typer.Exit(code=1)
 
     df_last_signals = df_last_signals.astype(_signals_dtype)
@@ -146,14 +149,21 @@ def get_historic_readings_meters(
 
     if not table_exists:
         # we update fields to match the lake table
-        df_last_signals = __extend_df_first_insert(df_last_signals, queried_at_ts)
+        df_to_lake_new = __extend_df_first_insert(df_last_signals, queried_at_ts)
 
         logger.info(
             f"Table {schema}.{TABLE_NAME__DSET_METERS_READINGS}"
             " does not exist, creating it as we insert the data"
         )
 
-        df_last_signals.to_sql(
+        if dry_run:
+            logger.info(
+                "Dry run, not committing %s rows to the database",
+                len(df_to_lake_new),
+            )
+            return
+
+        df_to_lake_new.to_sql(
             con=engine,
             name=TABLE_NAME__DSET_METERS_READINGS,
             schema=schema,
@@ -175,6 +185,7 @@ def get_historic_readings_meters(
 
         logger.info(f"Found {len(df_in_lake_outdated)} signals that need updating")
 
+        # TODO: parallelize this, transactions are independent
         for _, signal in df_in_lake_outdated.iterrows():
             __append_new_signal_in_db(
                 signal,
@@ -193,11 +204,29 @@ def get_historic_readings_meters(
 def __extend_df_first_insert(
     df_last_signals: pd.DataFrame,
     queried_at_ts: datetime.datetime,
-):
-    """Extends a dataframe to match the lake table in the first insert."""
+) -> pd.DataFrame:
+    """Extends a dataframe to match the lake table in the first insert
 
+    Parameters
+    ----------
+    df_last_signals : pd.DataFrame
+        A dataframe with the last signals fetched from the DSET API
+    queried_at_ts : datetime.datetime
+        An UTC aware timestamp of when the data was queried
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe with the last signals fetched from the DSET API,
+        plus the queried_at timestamp and the ts and signal_value fields set to
+        the last ts and value
+    """
+
+    # we set the current ts and value as the last ts and value
     df_last_signals["ts"] = df_last_signals["signal_last_ts"]
     df_last_signals["signal_value"] = df_last_signals["signal_last_value"]
+
+    # we set the queried_at timestamp
     df_last_signals["queried_at"] = queried_at_ts
 
     return df_last_signals
@@ -209,8 +238,29 @@ def __resolve_outdated_signals(
 ) -> pd.DataFrame:
     """Filter outdated signals comparing data from api with data in lake
 
-    Performs a full outer join to get the last readings
-    and the last stored readings"""
+    Performs a full outer join to get the last readings and the last stored readings.
+
+    It uses two columns that need to be present in the dataframes:
+    `signal_last_ts` is the last ts received from the API, and `max_last_ts` is
+    the last ts in the lake
+
+    If it's a new signal from the api, if will show up only on the left side of the join.
+    In this case, we set the last stored ts and value as the current ts and value
+
+    Parameters
+    ----------
+    df_api : pd.DataFrame
+        dataframe with incoming data from the DSET API
+    df_lake : pd.DataFrame
+        dataframe with the last stored readings in the lake
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe with outdated. We say that the outdated signals are the
+        ones that are present in the lake, but have a newer reading, and new
+        signals not present in the lake.
+    """
 
     df_recent = df_api.merge(
         df_lake,
@@ -390,22 +440,26 @@ def __get_lake_latest_signals(
     schema: str,
     engine: sa.engine.Engine,
 ) -> pd.DataFrame:
+    """Get the latest signals from the lake table using a raw SQL query
+
+    We ensure times are naïve in UTC to avoid timezone issues.
+    """
 
     df = pd.read_sql(
         f"""select distinct on (signal_id)
                 signal_id,
                 signal_value as max_last_ts_value,
-                ts as max_last_ts
+                (ts at time zone signal_tz) at time zone 'UTC' as max_last_ts -- ensure ts is naïve but in UTC
             from plants.{schema}.{TABLE_NAME__DSET_METERS_READINGS}
             order by signal_id, ts desc
             """,
         engine,
-        parse_dates={"max_last_ts" : {'utc': True}},
+        parse_dates={"max_last_ts": {"utc": True}},
     ).astype(
         {
             "signal_id": "int64",
             "max_last_ts_value": "float64",
-            "max_last_ts": "datetime64[ns, UTC]",
+            "max_last_ts": "datetime64[ns]",
         }
     )
 
@@ -446,20 +500,26 @@ def __append_new_signal_in_db(
     apply_k_value: bool = True,
     sig_detail: bool = True,
 ):
-    # we craft a request to fetch data from
     signal_id = signal["signal_id"]
 
+    # We assume max_last_ts has the same timezone as signal_last_ts
+    _date_from = pd.to_datetime(signal["max_last_ts"]).tz_localize(signal["signal_tz"])
+    _date_to = pd.to_datetime(signal["signal_last_ts"]).tz_localize(signal["signal_tz"])
+
+    # ensure we use UTC regardless of the timezone, silently
+    date_from = _date_from.tz_convert("UTC")
+    date_to = _date_to.tz_convert("UTC")
+
     if signal["_merge"] == "both":
-        # we update from the last stored reading
-        date_from = signal["max_last_ts"]
-        date_to = signal["signal_last_ts"]
         logger.info(f"Signal {signal_id} is present in the lake, but outdated.")
     else:
         # it's a new signal incoming from the api, we fetch look_back_days of data
-        date_from = signal["max_last_ts"] - datetime.timedelta(days=look_back_days)
-        date_to = signal["max_last_ts"]
+        date_from = date_from - datetime.timedelta(days=look_back_days)
         logger.info(
-            f"New signal {signal_id} detected, not present in the lake. Fetching {look_back_days} days of data."
+            "New signal %s detected, not present in the lake. "
+            "Fetching %s days of data.",
+            signal_id,
+            look_back_days,
         )
 
     params = {
