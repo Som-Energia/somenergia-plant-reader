@@ -90,7 +90,7 @@ with DAG(
             " --schema lake"
             " --sig-detail"
             " --apply-k-value"
-            " --look-back-days 7"
+            " --look-back-days {{ var.value.get('scripts__read_dset_meters__look_back_days', 7) }}"  # noqa: E501
         ),
         docker_url=sampled_moll,
         mounts=[mount_nfs],
