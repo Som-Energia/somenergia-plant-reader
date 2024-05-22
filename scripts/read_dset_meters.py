@@ -73,6 +73,8 @@ def get_historic_readings_meters(
 
     response.raise_for_status()
 
+    logger.info("Querying groups from the DSET API at %s", response.url)
+
     filter_frequency = "15 minutes"
     filtered_signals = __transform_group_response(
         response.json(),
