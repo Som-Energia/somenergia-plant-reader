@@ -1,16 +1,13 @@
 import datetime
 import logging
+import typing as T
 
 import httpx
+import sqlalchemy as sa
 import typer
 from httpx import Timeout
-import sqlalchemy as sa
 
-from plant_reader import (
-    get_config,
-    read_dset,
-    read_store_dset,
-)
+from plant_reader import get_config, read_dset, read_store_dset
 from plant_reader.dset_reader import (
     create_response_table,
     create_table,
@@ -136,6 +133,12 @@ def get_historic_readings(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
+    validate_response: bool = typer.Option(
+        False,
+        "--validate-response",
+        help="Validate response",
+        is_flag=True,
+    ),
 ):
     # hack to make it not inclusive...
     to_date = to_date - datetime.timedelta(seconds=1)
@@ -171,19 +174,111 @@ def get_historic_readings(
         )
 
         response.raise_for_status()
+        response_json = response.json()
+
+        if validate_response and not _validate_non_null_data_or_ts(response_json):
+            print("Response is not valid, exiting.")
+            raise typer.Exit(code=1)
 
         if not dry_run:
             stored = store_dset_response(conn, response, endpoint, queryparams, schema)
-            logging.info(f"{len(stored)} readings stored")
+            logging.info("%s readings stored", len(stored))
             logging.info(stored)
         else:
-            response_json = response.json()
             logging.info(
                 "Readings retrieved" if response_json else "No readings retrieved"
             )
             logging.info(response_json)
 
     return 0
+
+
+def _validate_non_null_data_or_ts(response_json: T.Dict) -> bool:
+    """Validate that the response has non-null data or timestamps
+
+    Parameters
+    ----------
+    response_json : dict, optional
+        A dictionary with the response from the DSET API
+
+    Returns
+    -------
+    bool
+        Whether the response is valid. A valid response is one that has
+        the signals field, and inside each one of them has the fields
+        {"data": {"ts": VALUE, "value": VALUE}}
+
+        If the fields are not present, the response is considered invalid
+        and this will return False. If partial data is present, it will
+        log a warning and return True.
+    """
+
+    import pandas as pd
+
+    df = pd.DataFrame(response_json)
+
+    # -------------------------- validate signals field -------------------------- #
+
+    if "signals" not in df.columns:
+        logger.error("No 'signals' field found in the response")
+        return False
+
+    signals_null = df["signals"].explode().isnull().sum()
+
+    if signals_null > 0:
+        logger.warning(
+            f"Found {signals_null} rows with null values in the 'signals' column"
+        )
+
+    df_signals = (
+        df["signals"]  # extract only the signals column
+        .explode()  # turn json arrays into rows
+        .apply(pd.Series, dtype="object")  # turn the json into columns
+        .dropna(axis=1, how="all")  # drop columns with all nulls
+        .dropna(axis=0, how="all")  # drop rows with all nulls
+    )
+
+    # ---------------------------- validate data field --------------------------- #
+
+    if "data" not in df_signals.columns:
+        logger.error("No 'data' field found inside the 'signals' field")
+        return False
+
+    rows_data_null = df_signals["data"].explode().isnull().sum()
+
+    if rows_data_null > 0:
+        logger.warning(
+            f"Found {rows_data_null} rows with null values in the 'data' column"
+        )
+
+    # ----------------------- validate ts and value columns ---------------------- #
+
+    df_data = df_signals["data"].explode().apply(pd.Series, dtype="object")
+
+    if "ts" not in df_data.columns or "value" not in df_data.columns:
+        logger.error(
+            "No 'ts' or 'value' field found inside the 'data' field for this query."
+        )
+        return False
+
+    rows_ts_value_null = df_data.isna().sum().to_dict()
+    rows_total = df_data.shape[0]
+
+    if rows_ts_value_null["ts"] > 0:
+        logger.warning(
+            "Found %s rows (%.2f%%) with null values in the 'ts' column",
+            rows_ts_value_null["ts"],
+            (rows_ts_value_null["ts"] / rows_total) * 100,
+        )
+
+    if rows_ts_value_null["value"] > 0:
+        logger.warning(
+            "Found %s rows (%.2f%%) with null values in the 'value' column",
+            rows_ts_value_null["value"],
+            (rows_ts_value_null["value"] / rows_total) * 100,
+        )
+
+    return True
 
 
 if __name__ == "__main__":

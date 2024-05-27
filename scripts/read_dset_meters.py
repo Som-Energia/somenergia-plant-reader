@@ -46,6 +46,9 @@ def get_historic_readings_meters(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Don't commit to db", is_flag=True
     ),
+    return_null_values: bool = typer.Option(
+        False, "--return-null-values", help="Put null on missing values", is_flag=True
+    ),
     look_back_days: int = typer.Option(
         7,
         "--look-back-days",
@@ -57,6 +60,7 @@ def get_historic_readings_meters(
     queryparams = {
         "sig_detail": sig_detail,
         "applykvalue": apply_k_value,
+        "returnNullValues": return_null_values,
     }
 
     logger.info("Fetching groups from the DSET API")
@@ -194,6 +198,7 @@ def get_historic_readings_meters(
                 api_key=apikey,
                 base_url=base_url,
                 apply_k_value=apply_k_value,
+                return_null_values=return_null_values,
                 sig_detail=sig_detail,
                 engine=engine,
                 schema=schema,
@@ -501,6 +506,7 @@ def __append_new_signal_in_db(
     dry_run: bool = True,
     apply_k_value: bool = True,
     sig_detail: bool = True,
+    return_null_values: bool = True,
 ):
     signal_id = signal["signal_id"]
 
@@ -529,6 +535,7 @@ def __append_new_signal_in_db(
         "to": date_to.isoformat(),
         "applykvalue": apply_k_value,
         "sig_detail": sig_detail,
+        "returnNullValues": return_null_values,
     }
 
     logger.debug(f"Querying data for signal {signal_id} with params: {params}")
@@ -540,6 +547,13 @@ def __append_new_signal_in_db(
         query_timeout=query_timeout,
         base_url=base_url,
     )
+
+    if "ts" not in df_response.columns or "value" not in df_response.columns:
+        logger.error(
+            "Response from the DSET API for signal %s is missing the ts or value fields",
+            signal_id,
+        )
+        return
 
     if len(df_response) == 0:
         logger.info(f"No new readings for signal {signal_id}")
