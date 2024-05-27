@@ -541,6 +541,13 @@ def __append_new_signal_in_db(
         base_url=base_url,
     )
 
+    if "ts" not in df_response.columns or "value" not in df_response.columns:
+        logger.error(
+            "Response from the DSET API for signal %s is missing the ts or value fields",
+            signal_id,
+        )
+        return
+
     if len(df_response) == 0:
         logger.info(f"No new readings for signal {signal_id}")
         return
