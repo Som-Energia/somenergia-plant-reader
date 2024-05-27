@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 app = typer.Typer()
 
 
+def validate_date_is_utc(date: datetime.datetime) -> datetime.datetime:
+    if date is not None and date.strftime("%Z") != "UTC":
+        raise typer.BadParameter("date must be in UTC")
+    return date
+
+
 @app.command()
 def get_historic_readings_meters(
     dbapi: str = typer.Option(..., "--db-url"),
@@ -54,8 +60,38 @@ def get_historic_readings_meters(
         "--look-back-days",
         help="Number of days to look back from last timestamp when table is empty",
     ),
+    date_from: T.Optional[datetime.datetime] = typer.Option(
+        None,
+        "--date-from",
+        help="Start date to fetch data. Overrides --look-back-days.",
+        formats=[
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%d %H:%M:%S%z",
+            "%Y-%m-%d%z",
+        ],
+        callback=validate_date_is_utc,
+    ),
+    date_to: T.Optional[datetime.datetime] = typer.Option(
+        None,
+        "--date-to",
+        help="End date to fetch data. Overrides --look-back-days.",
+        formats=[
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%d %H:%M:%S%z",
+            "%Y-%m-%d%z",
+        ],
+        callback=validate_date_is_utc,
+    ),
 ):
     """Get historic readings from the DSET API and compare with what we have"""
+
+    if any([date_from, date_to]) and not all([date_from, date_to]):
+        logger.error(
+            "If date_from or date_to are specified, both need to be specified."
+        )
+        raise typer.Exit(code=1)
+
+    should_look_back = not all([date_from, date_to])
 
     queryparams = {
         "sig_detail": sig_detail,
@@ -86,8 +122,9 @@ def get_historic_readings_meters(
     )
 
     logger.info(
-        f"{len(filtered_signals)} signals left after"
-        f" filtering by frequency {filter_frequency}"
+        "%s signals left after filtering by frequency %s",
+        len(filtered_signals),
+        filter_frequency,
     )
 
     _signals_dtype = {
@@ -136,6 +173,7 @@ def get_historic_readings_meters(
     found_timezones = df_last_signals["signal_tz"].unique()
 
     if len(found_timezones) != 1 or found_timezones[0] != "UTC":
+        # this is because API endpoint uses /ISOFORMAT/ and we assume UTC
         logger.error(
             "Meter signals are mixing timezones=%s and we assume UTC. Aborting.",
             found_timezones,
@@ -158,8 +196,8 @@ def get_historic_readings_meters(
         df_to_lake_new = __extend_df_first_insert(df_last_signals, queried_at_ts)
 
         logger.info(
-            f"Table {schema}.{TABLE_NAME__DSET_METERS_READINGS}"
-            " does not exist, creating it as we insert the data"
+            "Table %s does not exist, creating it as we insert the data",
+            f"{schema}.{TABLE_NAME__DSET_METERS_READINGS}",
         )
 
         if dry_run:
@@ -178,18 +216,35 @@ def get_historic_readings_meters(
             dtype=_signals_sql_types,
         )
 
-        logger.info(f"{len(df_last_signals)} signals inserted.")
+        logger.info("%s signals inserted.", len(df_last_signals))
     else:
-        logger.info("Table exists, comparing last readings with stored ones")
+        logger.info("Table %s exists", f"{schema}.{TABLE_NAME__DSET_METERS_READINGS}")
 
-        df_lake_meters = __get_lake_latest_signals(schema, engine)
+        if should_look_back:
+            logger.info(
+                "Comparing last readings (%s days ago) with stored ones",
+                look_back_days,
+            )
 
-        df_in_lake_outdated = __resolve_outdated_signals(
-            df_api=df_last_signals,
-            df_lake=df_lake_meters,
-        )
+            df_lake_meters = __get_lake_latest_signals(schema, engine)
 
-        logger.info(f"Found {len(df_in_lake_outdated)} signals that need updating")
+            df_in_lake_outdated = __resolve_outdated_signals(
+                df_api=df_last_signals,
+                df_lake=df_lake_meters,
+            )
+
+            logger.info(
+                "Found %s signals that need updating",
+                len(df_in_lake_outdated),
+            )
+        else:
+            # we fetch all the signals
+            logger.info(
+                "Both --date-from and --date-to passed. Reading signals from %s to %s",
+                date_from,
+                date_to,
+            )
+            df_in_lake_outdated = df_last_signals
 
         # TODO: parallelize this, transactions are independent
         for _, signal in df_in_lake_outdated.iterrows():
@@ -205,6 +260,8 @@ def get_historic_readings_meters(
                 query_timeout=query_timeout,
                 dry_run=dry_run,
                 look_back_days=look_back_days,
+                date_from=date_from,
+                date_to=date_to,
             )
 
 
@@ -282,6 +339,7 @@ def __resolve_outdated_signals(
     _df_outdated_in_lake = df_recent.query(
         "_merge == 'both' and signal_last_ts > max_last_ts"
     )
+
     _df_new_from_api = df_recent.query("_merge == 'left_only'")
     _df_new_from_api["max_last_ts"] = _df_new_from_api["signal_last_ts"]
     _df_new_from_api["max_last_ts_value"] = _df_new_from_api["signal_last_value"]
@@ -322,8 +380,8 @@ def __extend_response(
             "signal_type": "absolute",
             "signal_is_virtual": False,
             "signal_tz": "UTC",
-            "signal_last_ts": "2024-02-13 23:45:00", # previous from the lake
-            "signal_last_value": 0, # previous from the lake
+            "signal_last_ts": "2024-02-13 23:45:00",
+            "signal_last_value": 0,
             "signal_unit": "kWh"
             "signal_external_id": some_uuid,
             "signal_device_external_description"; some_external_description,
@@ -333,8 +391,11 @@ def __extend_response(
         }
     ]
     """
+
+    # ts, value
     df_response.rename(columns={"value": "signal_value"}, inplace=True)
 
+    # rest coming from /groups
     df_response["group_id"] = signal["group_id"]
     df_response["group_code"] = signal["group_code"]
     df_response["group_name"] = signal["group_name"]
@@ -350,10 +411,8 @@ def __extend_response(
     df_response["signal_device_external_description"] = signal["signal_device_external_description"]  # fmt: skip
     df_response["signal_device_external_id"] = signal["signal_device_external_id"]
     df_response["queried_at"] = signal["queried_at"]
-
-    # we set the current ts and value as the last ts and value
-    df_response["signal_last_ts"] = signal["max_last_ts"]
-    df_response["signal_last_value"] = signal["max_last_ts_value"]
+    df_response["signal_last_ts"] = signal["signal_last_ts"]
+    df_response["signal_last_value"] = signal["signal_last_value"]
 
     return df_response
 
@@ -461,7 +520,6 @@ def __get_lake_latest_signals(
             order by signal_id, ts desc
             """,
         engine,
-        parse_dates={"max_last_ts": {"utc": True}},
     ).astype(
         {
             "signal_id": "int64",
@@ -491,7 +549,10 @@ def __query_data_latest(
 
     response.raise_for_status()
 
-    df_response = pd.DataFrame(response.json())
+    # we filter out None values
+    response_json = [t for t in response.json() if t is not None]
+    df_response = pd.DataFrame(response_json)
+
     return df_response
 
 
@@ -507,41 +568,111 @@ def __append_new_signal_in_db(
     apply_k_value: bool = True,
     sig_detail: bool = True,
     return_null_values: bool = True,
+    date_from: T.Optional[datetime.datetime] = None,
+    date_to: T.Optional[datetime.datetime] = None,
 ):
-    signal_id = signal["signal_id"]
+    """Downloads data from the DSET API and appends it to the lake table given some time references
 
-    # We assume max_last_ts has the same timezone as signal_last_ts
-    _date_from = pd.to_datetime(signal["max_last_ts"]).tz_localize(signal["signal_tz"])
-    _date_to = pd.to_datetime(signal["signal_last_ts"]).tz_localize(signal["signal_tz"])
+    The signal is a dict that has a signal_id, signal_last_ts, signal_tz, and other fields. This will query
+    the DSET endpoint using the signal_id, and if this signal_id is not present in the lake, it will fetch
+    as much data between now and the last `look_back_days` days.
 
-    # ensure we use UTC regardless of the timezone, silently
-    date_from = _date_from.tz_convert("UTC")
-    date_to = _date_to.tz_convert("UTC")
+    Otherwise, it will fetch data from signal_last_ts to now to update the lake table.
 
-    if signal["_merge"] == "both":
-        logger.info(f"Signal {signal_id} is present in the lake, but outdated.")
+    if date_from and date_to are specified, this will override this behaviour and it will attempt to download data
+    in this range only.
+
+    Parameters
+    ----------
+    signal : T.Dict
+        A signal dictionary obtainer from a dataframe
+    api_key : str
+        the api key to the DSET API
+    base_url : str
+        the base url of the DSET API
+    engine : sa.engine.Engine
+        A working SQLAlchemy engine
+    schema : str
+        The schema where the lake table is located
+    query_timeout : float
+        Timeout for the query, in seconds
+    look_back_days : int
+        How many days to look back if the signal is not present in the lake
+    dry_run : bool, optional
+        Don't attempt to insert anything, by default True
+    apply_k_value : bool, optional
+        Pass the applyKValue to the query. This tells the API to apply a conversion factor.
+        Otherwise values will not be properly scaled, by default True
+    sig_detail : bool, optional
+        Pass sigDetail to the DSET API so that it will return UUIDs, by default True
+    return_null_values : bool, optional
+        Pass returnNullValues to the DSET API so that it will return null values, by default True
+    date_from : Optional[datetime.datetime], optional
+        An optional start date (UTC) to override the behaviour of look_back_days, by default None
+    date_to : Optional[datetime.datetime], optional
+        An optional final date (UTC) to override the behaviour of look_back_days, by default None
+    """
+
+    if any([date_from, date_to]) and not all([date_from, date_to]):
+        logger.error(
+            "If date_from or date_to are specified, both need to be specified."
+        )
+        raise typer.Exit(code=1)
+
+    if all([date_from, date_to]):
+        if date_from > date_to:
+            logger.error("date_from must be less than date_to.")
+            raise typer.Exit(code=1)
     else:
-        # it's a new signal incoming from the api, we fetch look_back_days of data
-        date_from = date_from - datetime.timedelta(days=look_back_days)
-        logger.info(
-            "New signal %s detected, not present in the lake. "
-            "Fetching %s days of data.",
-            signal_id,
-            look_back_days,
+        # We assume max_last_ts has the same timezone as signal_last_ts
+        # ensure we use UTC regardless of the timezone, silently
+        date_from = (
+            pd.to_datetime(signal["max_last_ts"])
+            .tz_localize(signal["signal_tz"])
+            .tz_convert("UTC")
         )
 
+        date_to = (
+            pd.to_datetime(signal["signal_last_ts"])
+            .tz_localize(signal["signal_tz"])
+            .tz_convert("UTC")
+        )
+
+        if signal["_merge"] == "both":
+            # it's a signal that is present in the lake, but outdated
+            logger.info(
+                "Signal %s (%s, %s) is present in the lake, but outdated since %s.",
+                signal["signal_id"],
+                signal["group_name"],
+                signal["signal_description"],
+                date_from,
+            )
+        else:
+            # it's a new signal incoming from the api, we fetch look_back_days of data
+            date_from = date_from - datetime.timedelta(days=look_back_days)
+            logger.info(
+                "New signal %s detected, not present in the lake. "
+                "Fetching %s days of data.",
+                signal["signal_id"],
+                look_back_days,
+            )
+
     params = {
-        "from": date_from.isoformat(),
-        "to": date_to.isoformat(),
+        "from": date_from.isoformat().replace("+00:00", "Z"),
+        "to": date_to.isoformat().replace("+00:00", "Z"),
         "applykvalue": apply_k_value,
         "sig_detail": sig_detail,
         "returnNullValues": return_null_values,
     }
 
-    logger.debug(f"Querying data for signal {signal_id} with params: {params}")
+    logger.debug(
+        "Querying data for signal %s with params: %s",
+        signal["signal_id"],
+        params,
+    )
 
     df_response = __query_data_latest(
-        signal_id=signal_id,
+        signal_id=signal["signal_id"],
         api_key=api_key,
         query_params=params,
         query_timeout=query_timeout,
@@ -551,12 +682,15 @@ def __append_new_signal_in_db(
     if "ts" not in df_response.columns or "value" not in df_response.columns:
         logger.error(
             "Response from the DSET API for signal %s is missing the ts or value fields",
-            signal_id,
+            signal["signal_id"],
         )
         return
 
     if len(df_response) == 0:
-        logger.info(f"No new readings for signal {signal_id}")
+        logger.info(
+            "No new readings for signal %s",
+            signal["signal_id"],
+        )
         return
 
     df_new_signals = __extend_response(df_response, signal)
@@ -564,10 +698,10 @@ def __append_new_signal_in_db(
     # add queried_at timestamp
     # df_new_signals["queried_at"] = date_to
 
-    logger.info(f"{len(df_new_signals)} new readings fetched")
+    logger.info("%s new readings fetched", len(df_new_signals))
 
     if dry_run:
-        logger.info("Dry run, not committing to the database")
+        logger.warning("Dry run, not committing to the database")
         return
 
     logger.info("Committing results to the database")
